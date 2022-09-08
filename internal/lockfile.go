@@ -8,12 +8,12 @@ import (
 	"path"
 )
 
-type singleProjectJson map[string]int64
-type lockFileJson map[string]singleProjectJson
+type singleProjectJSON map[string]int64
+type lockFileJSON map[string]singleProjectJSON
 
 type Lockfile struct {
 	Files []string
-	JSON  lockFileJson
+	JSON  lockFileJSON
 }
 
 func (l *Lockfile) Bootstrap() {
@@ -37,7 +37,7 @@ func (l *Lockfile) Bootstrap() {
 	}
 }
 
-func (l *Lockfile) GetCurrentProject() singleProjectJson {
+func (l *Lockfile) GetCurrentProject() singleProjectJSON {
 	cwd, _ := os.Getwd()
 	return l.JSON[cwd]
 }
@@ -59,7 +59,7 @@ func (l *Lockfile) generateLockfile(initialLockfile bool) {
 	if initialLockfile {
 		lockfileMap := l.prepareMap(l.Files)
 		cwd, _ := os.Getwd()
-		contents = lockFileJson{cwd: lockfileMap}
+		contents = lockFileJSON{cwd: lockfileMap}
 	}
 
 	jsonString, err := json.MarshalIndent(contents, "", "  ")
@@ -75,14 +75,14 @@ func (l *Lockfile) generateLockfile(initialLockfile bool) {
 	}
 }
 
-func (l *Lockfile) prepareMap(files []string) singleProjectJson {
-	lockfileMapCh := make(chan singleProjectJson)
+func (l *Lockfile) prepareMap(files []string) singleProjectJSON {
+	lockfileMapCh := make(chan singleProjectJSON)
 	go l.getFileModifiedMap(files, lockfileMapCh)
 	return <-lockfileMapCh
 }
 
-func (l *Lockfile) getFileModifiedMap(files []string, ch chan singleProjectJson) {
-	lockfileMap := make(singleProjectJson)
+func (l *Lockfile) getFileModifiedMap(files []string, ch chan singleProjectJSON) {
+	lockfileMap := make(singleProjectJSON)
 
 	for _, f := range files {
 		fo, err := os.Stat(f)
