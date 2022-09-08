@@ -1,9 +1,6 @@
 package internal
 
 import (
-	"bytes"
-	"encoding/base64"
-	"encoding/gob"
 	"log"
 	"os"
 	"os/exec"
@@ -66,7 +63,7 @@ func NewParser(clearCache bool) Parser {
 	pStr := string(pBytes)
 	parserString = pStr
 
-	return deserializeParser(pStr)
+	return GOBDeserialize(pStr, &Parser{})
 }
 
 func (p *Parser) Bootstrap() {
@@ -76,7 +73,7 @@ func (p *Parser) Bootstrap() {
 
 	p.parseGlobal()
 	p.parseTasks()
-	pStr := serializeParser(*p)
+	pStr := GOBSerialize(*p)
 
 	err := os.WriteFile(path.Join(os.TempDir(), getTempFileName()), []byte(pStr), 0644)
 	if err != nil {
@@ -189,33 +186,6 @@ func (p *Parser) expandFilePaths(file string) []string {
 	}
 
 	return filePaths
-}
-
-func serializeParser(m Parser) string {
-	b := bytes.Buffer{}
-	e := gob.NewEncoder(&b)
-	err := e.Encode(m)
-	if err != nil {
-		log.Fatal(`failed gob encode`, err)
-	}
-	return base64.StdEncoding.EncodeToString(b.Bytes())
-}
-
-// go binary decoder
-func deserializeParser(str string) Parser {
-	m := Parser{}
-	by, err := base64.StdEncoding.DecodeString(str)
-	if err != nil {
-		log.Fatal(`failed base64 decode`, err)
-	}
-	b := bytes.Buffer{}
-	b.Write(by)
-	d := gob.NewDecoder(&b)
-	err = d.Decode(&m)
-	if err != nil {
-		log.Fatal(`failed gob decode`, err)
-	}
-	return m
 }
 
 func getTempFileName() string {
