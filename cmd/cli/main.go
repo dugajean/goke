@@ -7,14 +7,16 @@ import (
 )
 
 func main() {
-	p := app.Parser{}
+	clearCache := len(os.Args) > 1 && os.Args[2] == "-c"
+
+	p := app.NewParser(clearCache)
 	p.Bootstrap()
 
 	l := app.Lockfile{Files: p.FilePaths}
 	l.Bootstrap()
 
 	e := app.NewExecuter(&p, &l)
-	if len(os.Args) > 1 {
+	if len(os.Args) > 0 {
 		e.Execute(os.Args[1])
 	} else {
 		e.Execute(app.DefaultTask)

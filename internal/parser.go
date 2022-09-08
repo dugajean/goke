@@ -1,9 +1,13 @@
 package internal
 
 import (
+	"bytes"
+	"encoding/base64"
+	"encoding/gob"
 	"log"
 	"os"
 	"os/exec"
+	"path"
 	"path/filepath"
 	"regexp"
 	"strings"
@@ -19,8 +23,8 @@ type Task struct {
 	Run   []string `yaml:"run"`
 }
 
-type global struct {
-	Global struct {
+type Global struct {
+	Shared struct {
 		Environment map[string]string `yaml:"environment,omitempty"`
 		Events      struct {
 			BeforeEachRun  []string `yaml:"before_each_run,omitempty"`
@@ -35,15 +39,49 @@ type taskList map[string]Task
 
 const osCommandRegexp = `\$\(([\w\d]+)\)`
 
+var parserString string
+
 type Parser struct {
 	Tasks     taskList
 	FilePaths []string
-	global
+	Global
+}
+
+func NewParser(clearCache bool) Parser {
+	tempFile := path.Join(os.TempDir(), getTempFileName())
+
+	if clearCache && FileExists(tempFile) {
+		os.Remove(tempFile)
+	}
+
+	if !FileExists(tempFile) {
+		return Parser{}
+	}
+
+	pBytes, err := os.ReadFile(tempFile)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	pStr := string(pBytes)
+	parserString = pStr
+
+	return deserializeParser(pStr)
 }
 
 func (p *Parser) Bootstrap() {
+	if parserString != "" {
+		return
+	}
+
 	p.parseGlobal()
 	p.parseTasks()
+	pStr := serializeParser(*p)
+
+	err := os.WriteFile(path.Join(os.TempDir(), getTempFileName()), []byte(pStr), 0644)
+	if err != nil {
+		log.Fatal(err)
+	}
 }
 
 // Parses the individual user defined tasks in the YAML config,
@@ -52,7 +90,7 @@ func (p *Parser) parseTasks() {
 	var tasks taskList
 
 	if err := yaml.Unmarshal([]byte(yamlConfig), &tasks); err != nil {
-		log.Fatalln(err)
+		log.Fatal(err)
 	}
 
 	re := regexp.MustCompile(osCommandRegexp)
@@ -86,13 +124,13 @@ func (p *Parser) parseTasks() {
 // Parses the "global" key in the yaml config and adds it to the parser.
 // Also sets all variables under global.environment as OS environment variables.
 func (p *Parser) parseGlobal() {
-	var g global
+	var g Global
 	if err := yaml.Unmarshal([]byte(yamlConfig), &g); err != nil {
-		log.Fatalln(err)
+		log.Fatal(err)
 	}
 
 	re := regexp.MustCompile(osCommandRegexp)
-	for k, v := range g.Global.Environment {
+	for k, v := range g.Shared.Environment {
 		_, cmd := p.parseSystemCmd(re, v)
 
 		if cmd == "" {
@@ -108,7 +146,7 @@ func (p *Parser) parseGlobal() {
 		os.Setenv(k, string(out))
 	}
 
-	p.Global = g.Global
+	p.Global = g
 }
 
 // Parses the interpolated system commands, ie. "Hello $(echo 'World')" and returns it.
@@ -140,7 +178,7 @@ func (p *Parser) expandFilePaths(file string) []string {
 	if strings.Contains(file, "*") {
 		files, err := filepath.Glob(file)
 		if err != nil {
-			log.Fatalln(err)
+			log.Fatal(err)
 		}
 
 		if len(files) > 0 {
@@ -151,4 +189,36 @@ func (p *Parser) expandFilePaths(file string) []string {
 	}
 
 	return filePaths
+}
+
+func serializeParser(m Parser) string {
+	b := bytes.Buffer{}
+	e := gob.NewEncoder(&b)
+	err := e.Encode(m)
+	if err != nil {
+		log.Fatal(`failed gob encode`, err)
+	}
+	return base64.StdEncoding.EncodeToString(b.Bytes())
+}
+
+// go binary decoder
+func deserializeParser(str string) Parser {
+	m := Parser{}
+	by, err := base64.StdEncoding.DecodeString(str)
+	if err != nil {
+		log.Fatal(`failed base64 decode`, err)
+	}
+	b := bytes.Buffer{}
+	b.Write(by)
+	d := gob.NewDecoder(&b)
+	err = d.Decode(&m)
+	if err != nil {
+		log.Fatal(`failed gob decode`, err)
+	}
+	return m
+}
+
+func getTempFileName() string {
+	cwd, _ := os.Getwd()
+	return "goke-" + strings.Replace(cwd, string(filepath.Separator), "-", -1)
 }

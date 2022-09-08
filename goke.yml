@@ -37,7 +37,7 @@ greet-lisha:
 
 greet-loki:
   run:
-    - 'echo "Hello Loki"'
+    - 'echo "Hello Boki"'
 
 greet-cats:
   run:

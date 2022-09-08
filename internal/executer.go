@@ -80,7 +80,7 @@ func (e *Executer) shouldDispatch(task Task) (bool, error) {
 		return true, nil
 	}
 
-	dispatchCh := make(chan TypeOrErr[bool])
+	dispatchCh := make(chan Ref[bool])
 	go e.shouldDispatchRoutine(task, dispatchCh)
 	dispatch := <-dispatchCh
 
@@ -88,7 +88,7 @@ func (e *Executer) shouldDispatch(task Task) (bool, error) {
 		return false, dispatch.Error
 	}
 
-	if dispatch.Value {
+	if dispatch.Equal(true) {
 		e.lockfile.UpdateTimestampsForFiles(task.Files)
 	}
 
@@ -97,31 +97,31 @@ func (e *Executer) shouldDispatch(task Task) (bool, error) {
 
 // Go Routine function that determines whether the stored
 // mtime is greater  than mtime if the file at this moment.
-func (e *Executer) shouldDispatchRoutine(task Task, ch chan TypeOrErr[bool]) {
+func (e *Executer) shouldDispatchRoutine(task Task, ch chan Ref[bool]) {
 	lockedModTimes := e.lockfile.GetCurrentProject()
 
 	for _, f := range task.Files {
 		fo, err := os.Stat(f)
 		if err != nil {
-			ch <- TypeOrErr[bool]{Value: false, Error: err}
+			ch <- Ref[bool]{Value: false, Error: err}
 		}
 
 		modTimeNow := fo.ModTime().Unix()
 		if lockedModTimes[f] < modTimeNow {
-			ch <- TypeOrErr[bool]{Value: true}
+			ch <- Ref[bool]{Value: true}
 			return
 		}
 	}
 
-	ch <- TypeOrErr[bool]{Value: false}
+	ch <- Ref[bool]{Value: false}
 }
 
 // Dispatches the individual commands of the current task,
 // including and events that need to be run.
 func (e *Executer) dispatchCommands(task Task, initialRun bool) error {
-	outputs := make(chan TypeOrErr[string])
+	outputs := make(chan Ref[string])
 	if initialRun {
-		for _, beforeEachCmd := range e.parser.Global.Events.BeforeEachTask {
+		for _, beforeEachCmd := range e.parser.Global.Shared.Events.BeforeEachTask {
 			err := e.runSysOrRecurse(beforeEachCmd, &outputs)
 
 			if err != nil {
@@ -132,7 +132,7 @@ func (e *Executer) dispatchCommands(task Task, initialRun bool) error {
 
 	for _, mainCmd := range task.Run {
 		if initialRun {
-			for _, beforeEachCmd := range e.parser.Global.Events.BeforeEachRun {
+			for _, beforeEachCmd := range e.parser.Global.Shared.Events.BeforeEachRun {
 				if err := e.runSysOrRecurse(beforeEachCmd, &outputs); err != nil {
 					return err
 				}
@@ -144,7 +144,7 @@ func (e *Executer) dispatchCommands(task Task, initialRun bool) error {
 		}
 
 		if initialRun {
-			for _, afterEachCmd := range e.parser.Global.Events.AfterEachRun {
+			for _, afterEachCmd := range e.parser.Global.Shared.Events.AfterEachRun {
 				if err := e.runSysOrRecurse(afterEachCmd, &outputs); err != nil {
 					return err
 				}
@@ -152,7 +152,7 @@ func (e *Executer) dispatchCommands(task Task, initialRun bool) error {
 		}
 	}
 
-	for _, afterEachCmd := range e.parser.Global.Events.AfterEachTask {
+	for _, afterEachCmd := range e.parser.Global.Shared.Events.AfterEachTask {
 		if err := e.runSysOrRecurse(afterEachCmd, &outputs); err != nil {
 			return err
 		}
@@ -162,7 +162,7 @@ func (e *Executer) dispatchCommands(task Task, initialRun bool) error {
 }
 
 // Determine what to execute: system command or another declared task in goke.yml.
-func (e *Executer) runSysOrRecurse(cmd string, ch *chan TypeOrErr[string]) error {
+func (e *Executer) runSysOrRecurse(cmd string, ch *chan Ref[string]) error {
 	e.spinner.Message(fmt.Sprintf("Running: %s", cmd))
 
 	if _, ok := e.parser.Tasks[cmd]; ok {
@@ -182,22 +182,22 @@ func (e *Executer) runSysOrRecurse(cmd string, ch *chan TypeOrErr[string]) error
 }
 
 // Executes the given string in the underlying OS.
-func (e *Executer) runSysCommand(c string, ch chan TypeOrErr[string]) {
+func (e *Executer) runSysCommand(c string, ch chan Ref[string]) {
 	splitCmd, err := e.parseCommandLine(c)
 
 	if err != nil {
-		ch <- TypeOrErr[string]{Value: "", Error: err}
+		ch <- Ref[string]{Value: "", Error: err}
 		return
 	}
 
 	out, err := exec.Command(splitCmd[0], splitCmd[1:]...).Output()
 
 	if err != nil {
-		ch <- TypeOrErr[string]{Value: "", Error: err}
+		ch <- Ref[string]{Value: "", Error: err}
 		return
 	}
 
-	ch <- TypeOrErr[string]{Value: "\n" + string(out) + "\n"}
+	ch <- Ref[string]{Value: "\n" + string(out) + "\n"}
 }
 
 func (e *Executer) logErr(err error) {

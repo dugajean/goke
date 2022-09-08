@@ -5,9 +5,13 @@ import (
 	"os"
 )
 
-type TypeOrErr[T any] struct {
+type Ref[T comparable] struct {
 	Value T
 	Error error
+}
+
+func (e *Ref[T]) Equal(value T) bool {
+	return e.Value == value
 }
 
 func ReadYamlConfig() string {
