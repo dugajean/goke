@@ -117,7 +117,7 @@ func (e *Executer) shouldDispatchRoutine(task Task, ch chan Ref[bool]) {
 }
 
 // Dispatches the individual commands of the current task,
-// including and events that need to be run.
+// including any events that need to be run.
 func (e *Executer) dispatchCommands(task Task, initialRun bool) error {
 	outputs := make(chan Ref[string])
 	if initialRun {
@@ -200,10 +200,12 @@ func (e *Executer) runSysCommand(c string, ch chan Ref[string]) {
 	ch <- NewRef("\n"+string(out)+"\n", nil)
 }
 
+// Shortcut to logging an error using spinner logger.
 func (e *Executer) logErr(err error) {
 	e.log("error", fmt.Sprintf("Error: %s\n", err.Error()))
 }
 
+// Log to the console using the spinner instance.
 func (e *Executer) log(status string, message string) {
 	switch status {
 	default:

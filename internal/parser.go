@@ -44,9 +44,12 @@ type Parser struct {
 	Global
 }
 
+// Provide a parser instance which can be either a blank one,
+// or one provided  from the cache, which gets deserialized.
 func NewParser(clearCache bool) Parser {
 	tempFile := path.Join(os.TempDir(), getTempFileName())
 
+	// Clear cache if CLI flag was provided.
 	if clearCache && FileExists(tempFile) {
 		os.Remove(tempFile)
 	}
@@ -66,7 +69,9 @@ func NewParser(clearCache bool) Parser {
 	return GOBDeserialize(pStr, &Parser{})
 }
 
+// Do the parsing process or skip if cached.
 func (p *Parser) Bootstrap() {
+	// Nothing too bootstrap if cached.
 	if parserString != "" {
 		return
 	}

@@ -16,6 +16,7 @@ type Lockfile struct {
 	JSON  lockFileJson
 }
 
+// Loads existing lock information generates it for the first time.
 func (l *Lockfile) Bootstrap() {
 	lockfilePath, err := l.getLockfilePath()
 	if err != nil {
@@ -37,11 +38,13 @@ func (l *Lockfile) Bootstrap() {
 	}
 }
 
+// Returns the lock information for the current project.
 func (l *Lockfile) GetCurrentProject() singleProjectJson {
 	cwd, _ := os.Getwd()
 	return l.JSON[cwd]
 }
 
+// Update timestamps for files in current project.
 func (l *Lockfile) UpdateTimestampsForFiles(files []string) {
 	lockfileMap := l.prepareMap(files)
 	cwd, _ := os.Getwd()
@@ -54,6 +57,7 @@ func (l *Lockfile) UpdateTimestampsForFiles(files []string) {
 	l.generateLockfile(false)
 }
 
+// Generate the lockfile file, or update it with new contents.
 func (l *Lockfile) generateLockfile(initialLockfile bool) {
 	contents := l.JSON
 	if initialLockfile {
@@ -75,12 +79,14 @@ func (l *Lockfile) generateLockfile(initialLockfile bool) {
 	}
 }
 
+// Prepares the map used to populate individual project files.
 func (l *Lockfile) prepareMap(files []string) singleProjectJson {
 	lockfileMapCh := make(chan singleProjectJson)
 	go l.getFileModifiedMap(files, lockfileMapCh)
 	return <-lockfileMapCh
 }
 
+// Go routine used to dispatch file mtime checks in the background.
 func (l *Lockfile) getFileModifiedMap(files []string, ch chan singleProjectJson) {
 	lockfileMap := make(singleProjectJson)
 
@@ -97,6 +103,7 @@ func (l *Lockfile) getFileModifiedMap(files []string, ch chan singleProjectJson)
 	ch <- lockfileMap
 }
 
+// Writes the lockfile into the filesystem.
 func (l *Lockfile) writeLockfile(contents []byte, ch chan error) {
 	gokePath, err := l.getLockfilePath()
 
@@ -115,6 +122,7 @@ func (l *Lockfile) writeLockfile(contents []byte, ch chan error) {
 	ch <- nil
 }
 
+// Returns the location of the lockfile in the system.
 func (l *Lockfile) getLockfilePath() (string, error) {
 	user, err := user.Current()
 	if err != nil {
