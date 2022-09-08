@@ -133,25 +133,19 @@ func (e *Executer) dispatchCommands(task Task, initialRun bool) error {
 	for _, mainCmd := range task.Run {
 		if initialRun {
 			for _, beforeEachCmd := range e.parser.Global.Events.BeforeEachRun {
-				err := e.runSysOrRecurse(beforeEachCmd, &outputs)
-
-				if err != nil {
+				if err := e.runSysOrRecurse(beforeEachCmd, &outputs); err != nil {
 					return err
 				}
 			}
 		}
 
-		err := e.runSysOrRecurse(mainCmd, &outputs)
-
-		if err != nil {
+		if err := e.runSysOrRecurse(mainCmd, &outputs); err != nil {
 			return err
 		}
 
 		if initialRun {
 			for _, afterEachCmd := range e.parser.Global.Events.AfterEachRun {
-				err := e.runSysOrRecurse(afterEachCmd, &outputs)
-
-				if err != nil {
+				if err := e.runSysOrRecurse(afterEachCmd, &outputs); err != nil {
 					return err
 				}
 			}
@@ -159,9 +153,7 @@ func (e *Executer) dispatchCommands(task Task, initialRun bool) error {
 	}
 
 	for _, afterEachCmd := range e.parser.Global.Events.AfterEachTask {
-		err := e.runSysOrRecurse(afterEachCmd, &outputs)
-
-		if err != nil {
+		if err := e.runSysOrRecurse(afterEachCmd, &outputs); err != nil {
 			return err
 		}
 	}
