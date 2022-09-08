@@ -1,15 +1,19 @@
 package main
 
-import "os"
+import (
+	"os"
+
+	app "github.com/dugajean/goke/internal"
+)
 
 func main() {
-	p := Parser{}
+	p := app.Parser{}
 	p.Bootstrap()
 
-	l := Lockfile{Files: p.FilePaths}
+	l := app.Lockfile{Files: p.FilePaths}
 	l.Bootstrap()
 
-	e := NewExecuter(p, l)
+	e := app.NewExecuter(p, l)
 	if len(os.Args) > 1 {
 		e.Execute(os.Args[1], true)
 	} else {
