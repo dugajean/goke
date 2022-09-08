@@ -11,8 +11,8 @@ func main() {
 
 	e := NewExecuter(p, l)
 	if len(os.Args) > 1 {
-		e.Execute(os.Args[1])
+		e.Execute(os.Args[1], true)
 	} else {
-		e.Execute("build")
+		e.Execute("build", true)
 	}
 }

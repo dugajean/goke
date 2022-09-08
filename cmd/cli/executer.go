@@ -31,6 +31,7 @@ var spinnerCfg = yacspin.Config{
 	StopFailMessage:   "Failed",
 }
 
+// Executer constructor.
 func NewExecuter(p Parser, l Lockfile) Executer {
 	spinner, _ := yacspin.New(spinnerCfg)
 
@@ -41,27 +42,34 @@ func NewExecuter(p Parser, l Lockfile) Executer {
 	}
 }
 
-// Executes all command strings under given arg.
+// Executes all command strings under given taskName.
 // Each call happens in its own go routine.
-func (e *Executer) Execute(arg string) {
-	if _, ok := e.parser.Commands[arg]; !ok {
-		fmt.Printf("command '%s' not found\n", arg)
+func (e *Executer) Execute(taskName string, initialRun bool) {
+	if _, ok := e.parser.Tasks[taskName]; !ok {
+		fmt.Printf("command '%s' not found\n", taskName)
 		os.Exit(1)
 	}
 
-	task := e.parser.Commands[arg]
+	task := e.parser.Tasks[taskName]
 
-	e.spinner.Start()
-	if e.shouldDispatch(task) {
-		e.dispatchCommands(task)
+	if initialRun {
+		e.spinner.Start()
+	}
+
+	if !initialRun || e.shouldDispatch(task) {
+		e.dispatchCommands(task, initialRun)
 	} else {
 		e.spinner.StopMessage("Nothing to run")
 	}
-	e.spinner.Stop()
+
+	if initialRun {
+		e.spinner.Stop()
+	}
 }
 
 // Checks whether files have changed since the last run.
 // Also updates the lockfile if files did get modified.
+// If no "files" key is present in the task, simply returns true.
 func (e *Executer) shouldDispatch(task Task) bool {
 	if len(task.Files) == 0 {
 		return true
@@ -99,23 +107,45 @@ func (e *Executer) shouldDispatchRoutine(task Task, ch chan bool) {
 	ch <- false
 }
 
-// Dispatches the individual commands of the current task
+// Dispatches the individual commands of the current task,
 // including and events that need to be run.
-func (e *Executer) dispatchCommands(task Task) {
+func (e *Executer) dispatchCommands(task Task, initialRun bool) {
 	outputs := make(chan string)
+
+	if initialRun {
+		for _, beforeEachCmd := range e.parser.Global.Events.BeforeEachTask {
+			e.runSysOrRecurse(beforeEachCmd, &outputs)
+		}
+	}
+
 	for _, mainCmd := range task.Run {
-		for _, beforeEachCmd := range e.parser.Global.Events.BeforeEach {
-			go e.runSysCommand(beforeEachCmd, outputs)
-			fmt.Print(<-outputs)
+		if initialRun {
+			for _, beforeEachCmd := range e.parser.Global.Events.BeforeEachRun {
+				e.runSysOrRecurse(beforeEachCmd, &outputs)
+			}
 		}
 
-		go e.runSysCommand(mainCmd, outputs)
-		fmt.Print(<-outputs)
+		e.runSysOrRecurse(mainCmd, &outputs)
 
-		for _, afterEachCmd := range e.parser.Global.Events.AfterEach {
-			go e.runSysCommand(afterEachCmd, outputs)
-			fmt.Print(<-outputs)
+		if initialRun {
+			for _, afterEachCmd := range e.parser.Global.Events.AfterEachRun {
+				e.runSysOrRecurse(afterEachCmd, &outputs)
+			}
 		}
+	}
+
+	for _, afterEachCmd := range e.parser.Global.Events.AfterEachTask {
+		e.runSysOrRecurse(afterEachCmd, &outputs)
+	}
+}
+
+// Determine what to execute: system command or another declared task in goke.yml.
+func (e *Executer) runSysOrRecurse(cmd string, ch *chan string) {
+	if _, ok := e.parser.Tasks[cmd]; ok {
+		e.Execute(cmd, false)
+	} else {
+		go e.runSysCommand(cmd, *ch)
+		fmt.Print(<-*ch)
 	}
 }
 

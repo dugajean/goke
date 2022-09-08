@@ -14,6 +14,7 @@ import (
 var yamlConfig = ReadYamlConfig()
 
 type Task struct {
+	Name  string
 	Files []string `yaml:"files,omitempty"`
 	Run   []string `yaml:"run"`
 }
@@ -22,8 +23,10 @@ type global struct {
 	Global struct {
 		Environment map[string]string `yaml:"environment,omitempty"`
 		Events      struct {
-			BeforeEach []string `yaml:"before_each,omitempty"`
-			AfterEach  []string `yaml:"after_each,omitempty"`
+			BeforeEachRun  []string `yaml:"before_each_run,omitempty"`
+			AfterEachRun   []string `yaml:"after_each_run,omitempty"`
+			BeforeEachTask []string `yaml:"before_each_task,omitempty"`
+			AfterEachTask  []string `yaml:"after_each_task,omitempty"`
 		} `yaml:"events,omitempty"`
 	} `yaml:"global,omitempty"`
 }
@@ -33,7 +36,7 @@ type taskList map[string]Task
 const osCommandRegexp = `\$\(([\w\d]+)\)`
 
 type Parser struct {
-	Commands  taskList
+	Tasks     taskList
 	FilePaths []string
 	global
 }
@@ -71,10 +74,13 @@ func (p *Parser) parseTasks() {
 			tasks[k].Run[i] = strings.Replace(r, "$(files)", strings.Join(c.Files, " "), -1)
 			p.replaceEnvironmentVariables(re, &tasks[k].Run[i])
 		}
+
+		c.Name = k
+		tasks[k] = c
 	}
 
 	p.FilePaths = allFilesPaths
-	p.Commands = tasks
+	p.Tasks = tasks
 }
 
 // Parses the "global" key in the yaml config and adds it to the parser.

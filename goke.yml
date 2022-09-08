@@ -5,11 +5,16 @@ global:
     CSS_FILES: "styles/*.css"
 
   events:
-    before_each:
+    before_each_run:
       - "echo 'before each 1'"
       - "echo 'before each 2'"
-    after_each:
-      - "echo 'after each'"
+    after_each_run:
+      - "echo 'after each 1'"
+      - "greet-lisha"
+    # before_each_task:
+    #   - "echo 'before task'"
+    # after_each_task:
+    #   - "echo 'after task'"
 
 build-go: 
   files: [main.go, events.go, cmd/cli/*.go]
@@ -26,8 +31,17 @@ build-all:
     - "this.build-go"
     - "build-css"
 
+greet-lisha:
+  run:
+    - "echo 'Hello Lisha!'"
+
+greet-loki:
+  run:
+    - 'echo "Hello Loki"'
+
 greet-cats:
   files: [main.go, events.go, cmd/cli/*.go]
   run:
     - 'echo "Hello Frey"'
     - 'echo "Hello Sunny"'
+    - "greet-loki"
