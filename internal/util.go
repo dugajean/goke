@@ -5,6 +5,11 @@ import (
 	"os"
 )
 
+type TypeOrErr[T any] struct {
+	Value T
+	Error error
+}
+
 func ReadYamlConfig() string {
 	content, err := os.ReadFile("goke.yml")
 

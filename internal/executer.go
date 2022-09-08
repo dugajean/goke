@@ -2,13 +2,16 @@ package internal
 
 import (
 	"fmt"
-	"log"
 	"os"
 	"os/exec"
 	"time"
 
 	"github.com/theckman/yacspin"
 )
+
+// This represent the default task, so when the user
+// doesn't provide any args to the program, we default to this.
+const DefaultTask = "main"
 
 type Executer struct {
 	parser   Parser
@@ -32,139 +35,195 @@ var spinnerCfg = yacspin.Config{
 }
 
 // Executer constructor.
-func NewExecuter(p Parser, l Lockfile) Executer {
+func NewExecuter(p *Parser, l *Lockfile) Executer {
 	spinner, _ := yacspin.New(spinnerCfg)
 
 	return Executer{
-		parser:   p,
-		lockfile: l,
+		parser:   *p,
+		lockfile: *l,
 		spinner:  spinner,
 	}
 }
 
 // Executes all command strings under given taskName.
 // Each call happens in its own go routine.
-func (e *Executer) Execute(taskName string, initialRun bool) {
+func (e *Executer) Execute(taskName string) {
+	e.spinner.Start()
+
 	if _, ok := e.parser.Tasks[taskName]; !ok {
-		fmt.Printf("command '%s' not found\n", taskName)
-		os.Exit(1)
+		e.log("error", fmt.Sprintf("Command '%s' not found\n", taskName))
 	}
 
 	task := e.parser.Tasks[taskName]
+	shouldDispatch, err := e.shouldDispatch(task)
 
-	if initialRun {
-		e.spinner.Start()
+	if err != nil {
+		e.logErr(err)
 	}
 
-	if !initialRun || e.shouldDispatch(task) {
-		e.dispatchCommands(task, initialRun)
+	if shouldDispatch {
+		err := e.dispatchCommands(task, true)
+
+		if err != nil {
+			e.logErr(err)
+		}
 	} else {
-		e.spinner.StopMessage("Nothing to run")
-	}
-
-	if initialRun {
-		e.spinner.Stop()
+		e.log("success", "Nothing to run")
 	}
 }
 
 // Checks whether files have changed since the last run.
 // Also updates the lockfile if files did get modified.
 // If no "files" key is present in the task, simply returns true.
-func (e *Executer) shouldDispatch(task Task) bool {
+func (e *Executer) shouldDispatch(task Task) (bool, error) {
 	if len(task.Files) == 0 {
-		return true
+		return true, nil
 	}
 
-	dispatchCh := make(chan bool)
+	dispatchCh := make(chan TypeOrErr[bool])
 	go e.shouldDispatchRoutine(task, dispatchCh)
 	dispatch := <-dispatchCh
 
-	if dispatch {
+	if dispatch.Error != nil {
+		return false, dispatch.Error
+	}
+
+	if dispatch.Value {
 		e.lockfile.UpdateTimestampsForFiles(task.Files)
 	}
 
-	return dispatch
+	return dispatch.Value, nil
 }
 
 // Go Routine function that determines whether the stored
 // mtime is greater  than mtime if the file at this moment.
-func (e *Executer) shouldDispatchRoutine(task Task, ch chan bool) {
+func (e *Executer) shouldDispatchRoutine(task Task, ch chan TypeOrErr[bool]) {
 	lockedModTimes := e.lockfile.GetCurrentProject()
 
 	for _, f := range task.Files {
 		fo, err := os.Stat(f)
 		if err != nil {
-			log.Fatalln(err)
+			ch <- TypeOrErr[bool]{Value: false, Error: err}
 		}
 
 		modTimeNow := fo.ModTime().Unix()
 		if lockedModTimes[f] < modTimeNow {
-			ch <- true
-			break
+			ch <- TypeOrErr[bool]{Value: true}
+			return
 		}
 	}
 
-	ch <- false
+	ch <- TypeOrErr[bool]{Value: false}
 }
 
 // Dispatches the individual commands of the current task,
 // including and events that need to be run.
-func (e *Executer) dispatchCommands(task Task, initialRun bool) {
-	outputs := make(chan string)
-
+func (e *Executer) dispatchCommands(task Task, initialRun bool) error {
+	outputs := make(chan TypeOrErr[string])
 	if initialRun {
 		for _, beforeEachCmd := range e.parser.Global.Events.BeforeEachTask {
-			e.runSysOrRecurse(beforeEachCmd, &outputs)
+			err := e.runSysOrRecurse(beforeEachCmd, &outputs)
+
+			if err != nil {
+				return err
+			}
 		}
 	}
 
 	for _, mainCmd := range task.Run {
 		if initialRun {
 			for _, beforeEachCmd := range e.parser.Global.Events.BeforeEachRun {
-				e.runSysOrRecurse(beforeEachCmd, &outputs)
+				err := e.runSysOrRecurse(beforeEachCmd, &outputs)
+
+				if err != nil {
+					return err
+				}
 			}
 		}
 
-		e.runSysOrRecurse(mainCmd, &outputs)
+		err := e.runSysOrRecurse(mainCmd, &outputs)
+
+		if err != nil {
+			return err
+		}
 
 		if initialRun {
 			for _, afterEachCmd := range e.parser.Global.Events.AfterEachRun {
-				e.runSysOrRecurse(afterEachCmd, &outputs)
+				err := e.runSysOrRecurse(afterEachCmd, &outputs)
+
+				if err != nil {
+					return err
+				}
 			}
 		}
 	}
 
 	for _, afterEachCmd := range e.parser.Global.Events.AfterEachTask {
-		e.runSysOrRecurse(afterEachCmd, &outputs)
+		err := e.runSysOrRecurse(afterEachCmd, &outputs)
+
+		if err != nil {
+			return err
+		}
 	}
+
+	return nil
 }
 
 // Determine what to execute: system command or another declared task in goke.yml.
-func (e *Executer) runSysOrRecurse(cmd string, ch *chan string) {
+func (e *Executer) runSysOrRecurse(cmd string, ch *chan TypeOrErr[string]) error {
+	e.spinner.Message(fmt.Sprintf("Running: %s", cmd))
+
 	if _, ok := e.parser.Tasks[cmd]; ok {
-		e.Execute(cmd, false)
+		return e.dispatchCommands(e.parser.Tasks[cmd], false)
 	} else {
 		go e.runSysCommand(cmd, *ch)
-		fmt.Print(<-*ch)
+		output := <-*ch
+
+		if output.Error != nil {
+			return output.Error
+		}
+
+		fmt.Print(output.Value)
 	}
+
+	return nil
 }
 
 // Executes the given string in the underlying OS.
-func (e *Executer) runSysCommand(c string, outChan chan string) {
+func (e *Executer) runSysCommand(c string, ch chan TypeOrErr[string]) {
 	splitCmd, err := e.parseCommandLine(c)
 
 	if err != nil {
-		log.Fatalln(err)
+		ch <- TypeOrErr[string]{Value: "", Error: err}
+		return
 	}
 
-	e.spinner.Message(fmt.Sprintf("Running: %s", c))
 	out, err := exec.Command(splitCmd[0], splitCmd[1:]...).Output()
 
 	if err != nil {
-		log.Fatalln(err)
+		ch <- TypeOrErr[string]{Value: "", Error: err}
+		return
 	}
 
-	outChan <- "\n" + string(out) + "\n"
+	ch <- TypeOrErr[string]{Value: "\n" + string(out) + "\n"}
+}
+
+func (e *Executer) logErr(err error) {
+	e.log("error", fmt.Sprintf("Error: %s\n", err.Error()))
+}
+
+func (e *Executer) log(status string, message string) {
+	switch status {
+	default:
+	case "success":
+		e.spinner.StopMessage(message)
+		e.spinner.Stop()
+		os.Exit(0)
+	case "error":
+		e.spinner.StopFailMessage(message)
+		e.spinner.StopFail()
+		os.Exit(1)
+	}
 }
 
 // Parses the command string into an array of [command, args, args]...
@@ -224,7 +283,7 @@ func (e *Executer) parseCommandLine(command string) ([]string, error) {
 	}
 
 	if state == "quotes" {
-		return []string{}, fmt.Errorf("unclosed quote in command line: %s", command)
+		return []string{}, fmt.Errorf("unclosed quote in command: %s", command)
 	}
 
 	if current != "" {

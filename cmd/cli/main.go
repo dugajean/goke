@@ -13,10 +13,10 @@ func main() {
 	l := app.Lockfile{Files: p.FilePaths}
 	l.Bootstrap()
 
-	e := app.NewExecuter(p, l)
+	e := app.NewExecuter(&p, &l)
 	if len(os.Args) > 1 {
-		e.Execute(os.Args[1], true)
+		e.Execute(os.Args[1])
 	} else {
-		e.Execute("build", true)
+		e.Execute(app.DefaultTask)
 	}
 }

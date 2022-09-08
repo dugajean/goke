@@ -40,7 +40,6 @@ greet-loki:
     - 'echo "Hello Loki"'
 
 greet-cats:
-  files: [main.go, events.go, cmd/cli/*.go]
   run:
     - 'echo "Hello Frey"'
     - 'echo "Hello Sunny"'

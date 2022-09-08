@@ -88,7 +88,7 @@ func (p *Parser) parseTasks() {
 func (p *Parser) parseGlobal() {
 	var g global
 	if err := yaml.Unmarshal([]byte(yamlConfig), &g); err != nil {
-		log.Fatal(err)
+		log.Fatalln(err)
 	}
 
 	re := regexp.MustCompile(osCommandRegexp)
@@ -140,7 +140,7 @@ func (p *Parser) expandFilePaths(file string) []string {
 	if strings.Contains(file, "*") {
 		files, err := filepath.Glob(file)
 		if err != nil {
-			log.Fatal(err)
+			log.Fatalln(err)
 		}
 
 		if len(files) > 0 {
