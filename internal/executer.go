@@ -13,12 +13,6 @@ import (
 // doesn't provide any args to the program, we default to this.
 const DefaultTask = "main"
 
-type Executer struct {
-	parser   Parser
-	lockfile Lockfile
-	spinner  *yacspin.Spinner
-}
-
 var spinnerCfg = yacspin.Config{
 	Frequency:         100 * time.Millisecond,
 	Colors:            []string{"fgYellow"},
@@ -34,27 +28,42 @@ var spinnerCfg = yacspin.Config{
 	StopFailMessage:   "Failed",
 }
 
+type Executer struct {
+	parser   Parser
+	lockfile Lockfile
+	spinner  *yacspin.Spinner
+	options  Options
+}
+
 // Executer constructor.
-func NewExecuter(p *Parser, l *Lockfile) Executer {
+func NewExecuter(p *Parser, l *Lockfile, opts *Options) Executer {
 	spinner, _ := yacspin.New(spinnerCfg)
 
 	return Executer{
 		parser:   *p,
 		lockfile: *l,
 		spinner:  spinner,
+		options:  *opts,
+	}
+}
+
+func (e *Executer) Start(taskName string) {
+	arg := DefaultTask
+	if taskName != "" {
+		arg = taskName
+	}
+
+	if e.options.Watch {
+		e.Watch(arg)
+	} else {
+		e.Execute(arg)
 	}
 }
 
 // Executes all command strings under given taskName.
 // Each call happens in its own go routine.
 func (e *Executer) Execute(taskName string) {
-	e.spinner.Start()
-
-	if _, ok := e.parser.Tasks[taskName]; !ok {
-		e.log("error", fmt.Sprintf("Command '%s' not found\n", taskName))
-	}
-
-	task := e.parser.Tasks[taskName]
+	task := e.initTask(taskName)
 	shouldDispatch, err := e.shouldDispatch(task)
 
 	if err != nil {
@@ -62,7 +71,7 @@ func (e *Executer) Execute(taskName string) {
 	}
 
 	if shouldDispatch {
-		err := e.dispatchCommands(task, true)
+		err := e.dispatchTask(task, true)
 
 		if err != nil {
 			e.logErr(err)
@@ -70,6 +79,45 @@ func (e *Executer) Execute(taskName string) {
 	} else {
 		e.log("success", "Nothing to run")
 	}
+}
+
+// Begins an infinite loop that watches for the file changes
+// in the "files" section of the task's configuration.
+func (e *Executer) Watch(taskName string) {
+	task := e.initTask(taskName)
+	wait := make(chan struct{})
+
+	for {
+		go func(ch chan struct{}) {
+			shouldDispatch, err := e.shouldDispatch(task)
+
+			if err != nil {
+				e.logErr(err)
+			}
+
+			if shouldDispatch {
+				err := e.dispatchTask(task, true)
+
+				if err != nil {
+					e.logErr(err)
+				}
+
+			}
+
+			e.spinner.Message("Watching for file changes...")
+			time.Sleep(time.Second)
+
+			ch <- struct{}{}
+		}(wait)
+
+		<-wait
+	}
+}
+
+func (e *Executer) initTask(taskName string) Task {
+	e.spinner.Start()
+	e.mustExist(taskName)
+	return e.parser.Tasks[taskName]
 }
 
 // Checks whether files have changed since the last run.
@@ -118,8 +166,9 @@ func (e *Executer) shouldDispatchRoutine(task Task, ch chan Ref[bool]) {
 
 // Dispatches the individual commands of the current task,
 // including any events that need to be run.
-func (e *Executer) dispatchCommands(task Task, initialRun bool) error {
+func (e *Executer) dispatchTask(task Task, initialRun bool) error {
 	outputs := make(chan Ref[string])
+
 	if initialRun {
 		for _, beforeEachCmd := range e.parser.Global.Shared.Events.BeforeEachTask {
 			err := e.runSysOrRecurse(beforeEachCmd, &outputs)
@@ -166,7 +215,7 @@ func (e *Executer) runSysOrRecurse(cmd string, ch *chan Ref[string]) error {
 	e.spinner.Message(fmt.Sprintf("Running: %s", cmd))
 
 	if _, ok := e.parser.Tasks[cmd]; ok {
-		return e.dispatchCommands(e.parser.Tasks[cmd], false)
+		return e.dispatchTask(e.parser.Tasks[cmd], false)
 	} else {
 		go e.runSysCommand(cmd, *ch)
 		output := <-*ch
@@ -198,6 +247,12 @@ func (e *Executer) runSysCommand(c string, ch chan Ref[string]) {
 	}
 
 	ch <- NewRef("\n"+string(out)+"\n", nil)
+}
+
+func (e *Executer) mustExist(taskName string) {
+	if _, ok := e.parser.Tasks[taskName]; !ok {
+		e.log("error", fmt.Sprintf("Command '%s' not found\n", taskName))
+	}
 }
 
 // Shortcut to logging an error using spinner logger.
