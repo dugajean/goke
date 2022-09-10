@@ -45,11 +45,11 @@ type Parser struct {
 
 // Provide a parser instance which can be either a blank one,
 // or one provided  from the cache, which gets deserialized.
-func NewParser(YAMLConfig string, clearCache bool) Parser {
+func NewParser(YAMLConfig string, opts *Options) Parser {
 	tempFile := path.Join(os.TempDir(), getTempFileName())
 
 	// Clear cache if CLI flag was provided.
-	if clearCache && FileExists(tempFile) {
+	if opts.ClearCache && FileExists(tempFile) {
 		os.Remove(tempFile)
 	}
 

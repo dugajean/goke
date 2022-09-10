@@ -11,7 +11,7 @@ func main() {
 	argIndex := app.PermutateArgs(os.Args)
 	opts := cli.GetOptions()
 
-	p := app.NewParser(app.ReadYamlConfig(), opts.ClearCache) //
+	p := app.NewParser(app.ReadYamlConfig(), &opts)
 	p.Bootstrap()
 
 	l := app.Lockfile{Files: p.FilePaths}
