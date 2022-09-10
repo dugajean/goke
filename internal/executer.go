@@ -101,7 +101,6 @@ func (e *Executer) Watch(taskName string) {
 				if err != nil {
 					e.logErr(err)
 				}
-
 			}
 
 			e.spinner.Message("Watching for file changes...")

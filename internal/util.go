@@ -60,3 +60,19 @@ func GOBDeserialize[T any](structStr string, structShell *T) T {
 
 	return *structShell
 }
+
+func PermutateArgs(args []string) int {
+	args = args[1:]
+	optind := 0
+
+	for i := range args {
+		if args[i][0] == '-' {
+			tmp := args[i]
+			args[i] = args[optind]
+			args[optind] = tmp
+			optind++
+		}
+	}
+
+	return optind + 1
+}

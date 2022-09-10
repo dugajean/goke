@@ -8,20 +8,25 @@ import (
 )
 
 func main() {
+	argIndex := app.PermutateArgs(os.Args)
 	opts := cli.GetOptions()
 
-	p := app.NewParser(app.ReadYamlConfig(), opts.ClearCache)
+	p := app.NewParser(app.ReadYamlConfig(), opts.ClearCache) //
 	p.Bootstrap()
 
 	l := app.Lockfile{Files: p.FilePaths}
 	l.Bootstrap()
 
 	e := app.NewExecuter(&p, &l, &opts)
+	e.Start(parseTaskName(argIndex))
+}
 
+func parseTaskName(argIndex int) string {
 	arg := ""
-	if len(os.Args) > 0 {
-		arg = os.Args[1]
+
+	if len(os.Args) > (argIndex - 1) {
+		arg = os.Args[argIndex]
 	}
 
-	e.Start(arg)
+	return arg
 }
