@@ -9,6 +9,12 @@ import (
 	"os"
 )
 
+type Options struct {
+	ClearCache bool
+	Watch      bool
+	Force      bool
+}
+
 func ReadYamlConfig() string {
 	content, err := os.ReadFile("goke.yml")
 

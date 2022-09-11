@@ -142,11 +142,11 @@ func (p *Parser) parseGlobal() {
 		}
 
 		out, err := exec.Command(cmd).Output()
-
 		if err != nil {
 			continue
 		}
 
+		g.Shared.Environment[k] = string(out)
 		os.Setenv(k, string(out))
 	}
 
