@@ -11,25 +11,15 @@ global:
     after_each_run:
       - "echo 'after each 1'"
       - "greet-lisha"
-    # before_each_task:
-    #   - "echo 'before task'"
-    # after_each_task:
-    #   - "echo 'after task'"
+    before_each_task:
+      - "echo 'before task'"
+    after_each_task:
+      - "echo 'after task'"
 
-build-go: 
-  files: [main.go, events.go, cmd/cli/*.go]
+build: 
+  files: [cmd/cli/*.go, internal/*]
   run:
-    - "go run $(files)"
-
-build-css:
-  files: [$(CSS_FILES)]
-  run:
-    - "ls -la"
-
-build-all:
-  run:
-    - "this.build-go"
-    - "build-css"
+    - "go build -o ./build/goke ./cmd/cli"
 
 greet-lisha:
   run:

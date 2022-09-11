@@ -47,6 +47,7 @@ func NewExecuter(p *Parser, l *Lockfile, opts *Options) Executer {
 	}
 }
 
+// Starts the command for a single run or as a watcher.
 func (e *Executer) Start(taskName string) {
 	arg := DefaultTask
 	if taskName != "" {
@@ -64,19 +65,9 @@ func (e *Executer) Start(taskName string) {
 // Each call happens in its own go routine.
 func (e *Executer) execute(taskName string) {
 	task := e.initTask(taskName)
-	shouldDispatch, err := e.shouldDispatch(task)
+	didDispatch := e.checkAndDispatch(task)
 
-	if err != nil {
-		e.logErr(err)
-	}
-
-	if shouldDispatch {
-		err := e.dispatchTask(task, true)
-
-		if err != nil {
-			e.logErr(err)
-		}
-	} else {
+	if !didDispatch {
 		e.log("success", "Nothing to run")
 	}
 }
@@ -89,23 +80,10 @@ func (e *Executer) watch(taskName string) {
 
 	for {
 		go func(ch chan struct{}) {
-			shouldDispatch, err := e.shouldDispatch(task)
-
-			if err != nil {
-				e.logErr(err)
-			}
-
-			if shouldDispatch {
-				err := e.dispatchTask(task, true)
-
-				if err != nil {
-					e.logErr(err)
-				}
-			}
-
+			e.checkAndDispatch(task)
 			e.spinner.Message("Watching for file changes...")
-			time.Sleep(time.Second)
 
+			time.Sleep(time.Second)
 			ch <- struct{}{}
 		}(wait)
 
@@ -113,6 +91,27 @@ func (e *Executer) watch(taskName string) {
 	}
 }
 
+// Checks whether the task will be dispatched or not,
+// and then dispatches is true. Returns true if dispatched.
+func (e *Executer) checkAndDispatch(task Task) bool {
+	shouldDispatch, err := e.shouldDispatch(task)
+
+	if err != nil {
+		e.logErr(err)
+	}
+
+	if shouldDispatch || e.options.Force {
+		err := e.dispatchTask(task, true)
+
+		if err != nil {
+			e.logErr(err)
+		}
+	}
+
+	return shouldDispatch || e.options.Force
+}
+
+// Fetch the task from the parser based on task name.
 func (e *Executer) initTask(taskName string) Task {
 	e.spinner.Start()
 	e.mustExist(taskName)
