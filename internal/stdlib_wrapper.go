@@ -7,7 +7,6 @@ package internal
 import (
 	"io/fs"
 	"os"
-	"time"
 )
 
 type StdlibWrapper interface {
@@ -92,30 +91,4 @@ func (std *MemStdlibWrapper) Remove(name string) error {
 
 func (std *MemStdlibWrapper) TempDir() string {
 	return "path/to/temp/dir"
-}
-
-type MemFileInfo struct{}
-
-func (fi *MemFileInfo) Name() string {
-	return "foo"
-}
-
-func (fi *MemFileInfo) Size() int64 {
-	return 10000
-}
-
-func (fi *MemFileInfo) Mode() fs.FileMode {
-	return 0644
-}
-
-func (fi *MemFileInfo) ModTime() time.Time {
-	return time.Date(2022, time.December, 24, 1, 1, 1, 1, time.UTC)
-}
-
-func (fi *MemFileInfo) IsDir() bool {
-	return false
-}
-
-func (fi *MemFileInfo) Sys() any {
-	return nil
 }

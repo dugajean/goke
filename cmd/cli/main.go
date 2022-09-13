@@ -10,12 +10,12 @@ import (
 func main() {
 	argIndex := app.PermutateArgs(os.Args)
 	opts := cli.GetOptions()
-	rw := app.ConcreteStdlibWrapper{}
+	stdlib := app.ConcreteStdlibWrapper{}
 
-	p := app.NewParser(app.ReadYamlConfig(), &opts, &rw) //
+	p := app.NewParser(app.ReadYamlConfig(), &opts, &stdlib) //
 	p.Bootstrap()
 
-	l := app.NewLockfile(p.FilePaths, &rw)
+	l := app.NewLockfile(p.FilePaths, &stdlib)
 	l.Bootstrap()
 
 	e := app.NewExecuter(&p, &l, &opts)

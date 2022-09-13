@@ -57,19 +57,27 @@ func (e *Executer) Start(taskName string) {
 	if e.options.Watch {
 		e.watch(arg)
 	} else {
-		e.execute(arg)
+		if err := e.execute(arg); err != nil {
+			e.logErr(err)
+		}
 	}
 }
 
 // Executes all command strings under given taskName.
 // Each call happens in its own go routine.
-func (e *Executer) execute(taskName string) {
+func (e *Executer) execute(taskName string) error {
 	task := e.initTask(taskName)
-	didDispatch := e.checkAndDispatch(task)
+	didDispatch, err := e.checkAndDispatch(task)
+
+	if err != nil {
+		return err
+	}
 
 	if !didDispatch {
 		e.log("success", "Nothing to run")
 	}
+
+	return nil
 }
 
 // Begins an infinite loop that watches for the file changes
@@ -93,22 +101,19 @@ func (e *Executer) watch(taskName string) {
 
 // Checks whether the task will be dispatched or not,
 // and then dispatches is true. Returns true if dispatched.
-func (e *Executer) checkAndDispatch(task Task) bool {
+func (e *Executer) checkAndDispatch(task Task) (bool, error) {
 	shouldDispatch, err := e.shouldDispatch(task)
-
 	if err != nil {
-		e.logErr(err)
+		return false, err
 	}
 
 	if shouldDispatch || e.options.Force {
-		err := e.dispatchTask(task, true)
-
-		if err != nil {
-			e.logErr(err)
+		if err := e.dispatchTask(task, true); err != nil {
+			return false, err
 		}
 	}
 
-	return shouldDispatch || e.options.Force
+	return (shouldDispatch || e.options.Force), nil
 }
 
 // Fetch the task from the parser based on task name.
@@ -230,7 +235,7 @@ func (e *Executer) runSysOrRecurse(cmd string, ch *chan Ref[string]) error {
 
 // Executes the given string in the underlying OS.
 func (e *Executer) runSysCommand(c string, ch chan Ref[string]) {
-	splitCmd, err := e.parseCommandLine(c)
+	splitCmd, err := ParseCommandLine(c)
 
 	if err != nil {
 		ch <- NewRef("", err)
@@ -271,71 +276,4 @@ func (e *Executer) log(status string, message string) {
 		e.spinner.StopFail()
 		os.Exit(1)
 	}
-}
-
-// Parses the command string into an array of [command, args, args]...
-func (e *Executer) parseCommandLine(command string) ([]string, error) {
-	var args []string
-	state := "start"
-	current := ""
-	quote := "\""
-	escapeNext := true
-
-	for i := 0; i < len(command); i++ {
-		c := command[i]
-
-		if state == "quotes" {
-			if string(c) != quote {
-				current += string(c)
-			} else {
-				args = append(args, current)
-				current = ""
-				state = "start"
-			}
-			continue
-		}
-
-		if escapeNext {
-			current += string(c)
-			escapeNext = false
-			continue
-		}
-
-		if c == '\\' {
-			escapeNext = true
-			continue
-		}
-
-		if c == '"' || c == '\'' {
-			state = "quotes"
-			quote = string(c)
-			continue
-		}
-
-		if state == "arg" {
-			if c == ' ' || c == '\t' {
-				args = append(args, current)
-				current = ""
-				state = "start"
-			} else {
-				current += string(c)
-			}
-			continue
-		}
-
-		if c != ' ' && c != '\t' {
-			state = "arg"
-			current += string(c)
-		}
-	}
-
-	if state == "quotes" {
-		return []string{}, fmt.Errorf("unclosed quote in command: %s", command)
-	}
-
-	if current != "" {
-		args = append(args, current)
-	}
-
-	return args, nil
 }
