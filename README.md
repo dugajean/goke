@@ -57,6 +57,7 @@ $ goke greet-pepper
 
 *Additional flags:*
 
+* `--watch`: Runs the given command in _watch_ mode, meaning it will watch the files under `files:` and rerun the command whenever they change
 * `--force`: Runs the given command regardless whether the files under `files:` have changed
 * `--no-cache` : Goke caches the given configuration to speed up execution and avoid parsing the configuration on every run. Clear the cache if you are changing your configuration
 
