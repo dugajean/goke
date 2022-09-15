@@ -11,7 +11,7 @@ build:
 genmocks:
   files: [internal/stdlib_wrapper.go]
   run:
-    - "mockery --name=StdlibWrapper --recursive --output=internal/mocks"
+    - "mockery --name=StdlibWrapper --recursive --output=internal/tests --outpkg=tests --filename=stdlib_wrapper_mock.go"
 
 greet-loki:
   run:

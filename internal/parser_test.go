@@ -3,7 +3,7 @@ package internal
 import (
 	"testing"
 
-	"github.com/dugajean/goke/internal/mocks"
+	"github.com/dugajean/goke/internal/tests"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 )
@@ -47,14 +47,14 @@ var options = Options{
 }
 
 func TestNewParser(t *testing.T) {
-	mockStdlib := GetMock(t)
+	mockStdlib := tests.GetStdlibMock(t).(StdlibWrapper)
 
 	parser := NewParser(yamlConfigStub, &options, mockStdlib)
 	assert.NotNil(t, parser)
 }
 
 func TestTaskParsing(t *testing.T) {
-	mockStdlib := GetMock(t)
+	mockStdlib := tests.GetStdlibMock(t).(StdlibWrapper)
 
 	parser := NewParser(yamlConfigStub, &options, mockStdlib)
 	assert.NotNil(t, parser.Tasks)
@@ -68,7 +68,7 @@ func TestTaskParsing(t *testing.T) {
 }
 
 func TestGlobalsParsing(t *testing.T) {
-	mockStdlib := mocks.NewStdlibWrapper(t)
+	mockStdlib := tests.NewStdlibWrapper(t)
 	mockStdlib.On("TempDir").Return("path/to/temp")
 	mockStdlib.On("Getwd").Return("path/to/cwd", nil)
 	mockStdlib.On("FileExists", mock.Anything).Return(false)
@@ -84,7 +84,7 @@ func TestGlobalsParsing(t *testing.T) {
 }
 
 func TestTaskFilesExpansion(t *testing.T) {
-	mockStdlib := GetMock(t)
+	mockStdlib := tests.GetStdlibMock(t).(StdlibWrapper)
 
 	parser := NewParser(yamlConfigStub, &options, mockStdlib)
 	parser.parseTasks()
@@ -94,7 +94,7 @@ func TestTaskFilesExpansion(t *testing.T) {
 }
 
 func TestParserWithoutCache(t *testing.T) {
-	mockStdlib := mocks.NewStdlibWrapper(t)
+	mockStdlib := tests.NewStdlibWrapper(t)
 	mockStdlib.On("TempDir").Return("path/to/temp")
 	mockStdlib.On("Getwd").Return("path/to/cwd", nil)
 	mockStdlib.On("FileExists", mock.Anything).Return(false)

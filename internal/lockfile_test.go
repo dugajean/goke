@@ -3,7 +3,7 @@ package internal
 import (
 	"testing"
 
-	"github.com/dugajean/goke/internal/mocks"
+	"github.com/dugajean/goke/internal/tests"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 )
@@ -11,7 +11,7 @@ import (
 var files = []string{"foo", "bar", "baz"}
 
 func TestNewLockfile(t *testing.T) {
-	stdlibMock := mocks.NewStdlibWrapper(t)
+	stdlibMock := tests.NewStdlibWrapper(t)
 	lockfile := NewLockfile(files, stdlibMock)
 
 	assert.NotNil(t, lockfile)
@@ -19,7 +19,7 @@ func TestNewLockfile(t *testing.T) {
 }
 
 func TestGenerateLockfileWithTrue(t *testing.T) {
-	stdlibMock := mocks.NewStdlibWrapper(t)
+	stdlibMock := tests.NewStdlibWrapper(t)
 	stdlibMock.On("Stat", mock.Anything).Return(MemFileInfo{}, nil)
 	stdlibMock.On("Getwd").Return("path/to/wd", nil)
 	stdlibMock.On("WriteFile", mock.Anything, mock.Anything, mock.Anything).Return(nil)
@@ -35,7 +35,7 @@ func TestGenerateLockfileWithTrue(t *testing.T) {
 }
 
 func TestGenerateLockfileWithFalse(t *testing.T) {
-	stdlibMock := mocks.NewStdlibWrapper(t)
+	stdlibMock := tests.NewStdlibWrapper(t)
 	stdlibMock.On("Stat", mock.Anything).Return(MemFileInfo{}, nil)
 	stdlibMock.On("Getwd").Return("path/to/wd", nil)
 	stdlibMock.On("WriteFile", mock.Anything, mock.Anything, mock.Anything).Return(nil)
