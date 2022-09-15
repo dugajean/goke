@@ -5,12 +5,12 @@ Goke is a build automation tool, similar to Make, but without the Makefile clutt
 
 * Uses YAML to declare build configurations, instead of the Makefile syntax
 * Built in Go, making it a blazing fast, multi-threaded tool
-* Support for global hooks [Read more](https://github.com/dugajean/goke/releases)
+* Support for global hooks
 * Intuitive environment variable declaration at any position in the configuration
 * And more!
 
 ## Installation
-Download the appropriate executable for your system from the releases page.
+Download the appropriate executable for your system from the [releases page](https://github.com/dugajean/goke/releases).
 
 ## Example configuration (goke.yml)
 ```
@@ -19,17 +19,18 @@ global:
     FOO: "foo"
     BAR: "$(echo 'BAR')"
     BAZ: "$(FOO)"
+    LOKI: "Loki"
 
   events:
     before_each_run:
-      - "echo 'before each 1'"
+      - "echo 'This will run before each command in a given task'"
     after_each_run:
-      - "echo 'after each 1'"
+      - "echo 'This will run after each command in a given task'"
       - "greet-pepper"
     before_each_task:
-      - "echo 'before task'"
+      - "echo 'This will run once before the given task'"
     after_each_task:
-      - "echo 'after task'"
+      - "echo 'This will run once after the given task'"
 
 greet-pepper:
   run:
@@ -37,7 +38,7 @@ greet-pepper:
 
 greet-loki:
   run:
-    - "echo 'Hello Loki'"
+    - "echo 'Hello ${LOKI}'"
 
 greet-cats:
   files: [cmd/cli/*]
@@ -55,7 +56,7 @@ $ goke greet-loki
 $ goke greet-pepper
 ```
 
-*Additional flags:*
+**Additional flags:**
 
 * `--watch`: Runs the given command in _watch_ mode, meaning it will watch the files under `files:` and rerun the command whenever they change
 * `--force`: Runs the given command regardless whether the files under `files:` have changed
