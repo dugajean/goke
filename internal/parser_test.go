@@ -78,7 +78,7 @@ func TestGlobalsParsing(t *testing.T) {
 
 	parser.parseGlobal()
 	assert.Equal(t, "foo", parser.Global.Shared.Environment["FOO"])
-	assert.Equal(t, "$(echo 'bar')", parser.Global.Shared.Environment["BAR"])
+	assert.Equal(t, "bar\n", parser.Global.Shared.Environment["BAR"])
 	assert.Equal(t, "baz", parser.Global.Shared.Environment["BAZ"])
 	mockStdlib.AssertNumberOfCalls(t, "Setenv", 3)
 }
