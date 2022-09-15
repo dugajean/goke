@@ -5,12 +5,12 @@ Goke is a build automation tool, similar to Make, but without the Makefile clutt
 
 * Uses YAML to declare build configurations, instead of the Makefile syntax
 * Built in Go, making it a blazing fast, multi-threaded tool
-* Support for global hooks [Read more]
+* Support for global hooks [Read more](https://github.com/dugajean/goke/releases)
 * Intuitive environment variable declaration at any position in the configuration
 * And more!
 
 ## Installation
-Download the appropriate executable for your system from the releases page.         
+Download the appropriate executable for your system from the releases page.
 
 ## Example configuration (goke.yml)
 ```
