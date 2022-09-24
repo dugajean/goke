@@ -18,7 +18,6 @@ brews:
     tap:
       owner: dugajean
       name: homebrew-goke
-      token: "{{ .Env.GITHUB_TOKEN }}"
 archives:
   - replacements:
       darwin: Darwin
