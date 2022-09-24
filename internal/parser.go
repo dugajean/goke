@@ -110,7 +110,7 @@ func (p *Parser) parseTasks() error {
 		return err
 	}
 
-	var allFilesPaths []string
+	allFilesPaths := []string{}
 
 	for k, c := range tasks {
 		filePaths := []string{}
