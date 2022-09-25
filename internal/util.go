@@ -18,15 +18,40 @@ type Options struct {
 	Quiet      bool
 }
 
-func ReadYamlConfig() string {
-	content, err := os.ReadFile("goke.yml")
+func GokeFiles() []string {
+	return []string{"goke.yml", "goke.yaml"}
+}
 
-	if err != nil {
-		fmt.Println("No presence of goke.yml sighted")
-		os.Exit(1)
+func ReadYamlConfig() (string, error) {
+	for _, f := range GokeFiles() {
+		content, err := os.ReadFile(f)
+
+		if err == nil && len(content) > 0 {
+			return string(content), nil
+		}
 	}
 
-	return string(content)
+	return "", errors.New("no presence of goke.yml sighted")
+}
+
+func CreateGokeConfig() error {
+	const sampleConfig = `global:
+environment:
+  MY_BINARY: "my_binary"
+
+build: 
+  files: [cmd/cli/*.go, internal/*]
+  run:
+    - "go build -o ./build/${MY_BINARY} ./cmd/cli"
+`
+
+	for _, f := range GokeFiles() {
+		if FileExists(f) {
+			return fmt.Errorf("%s already present in this directory", f)
+		}
+	}
+
+	return os.WriteFile("goke.yml", []byte(sampleConfig), 0644)
 }
 
 func FileExists(filename string) bool {
@@ -151,22 +176,4 @@ func ParseCommandLine(command string) ([]string, error) {
 	}
 
 	return args, nil
-}
-
-func CreateGokeConfig() error {
-	const sampleConfig = `global:
-environment:
-  MY_BINARY: "my_binary"
-
-build: 
-  files: [cmd/cli/*.go, internal/*]
-  run:
-    - "go build -o ./build/${MY_BINARY} ./cmd/cli"
-`
-
-	if FileExists("goke.yml") {
-		return errors.New("goke config already present in this directory")
-	}
-
-	return os.WriteFile("goke.yml", []byte(sampleConfig), 0644)
 }
