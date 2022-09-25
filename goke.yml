@@ -1,25 +1,19 @@
 global:
   environment:
     BINARY: "goke"
-    LOKI_CMD: '$(echo "$LOKI")'
 
 build: 
   files: [cmd/cli/*.go, internal/*]
   run:
-    - "go build -o ./build/${BINARY} ./cmd/cli"
+    - "go build -o './build/${BINARY}' ./cmd/cli"
 
 genmocks:
   files: [internal/filesystem.go]
   run:
     - "mockery --name=FileSystem --recursive --output=internal/tests --outpkg=tests --filename=filesystem_mock.go"
 
-greet-loki:
-  run:
-    - "echo 'Hello ${LOKI_CMD}'"
-
 greet-cats:
   files: [cmd/cli/*]
   run:
     - 'echo "Hello Frey"'
     - 'echo "Hello Sunny"'
-    - "greet-loki"
