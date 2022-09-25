@@ -14,6 +14,7 @@ func GetOptions() internal.Options {
 	flag.BoolVar(&opts.Force, "force", false, "Executes the task regardless whether the files have changed or not. Default: false")
 	flag.BoolVar(&opts.Init, "init", false, "Initializes a goke.yml file in the current directory")
 	flag.BoolVar(&opts.Quiet, "quiet", false, "Disables all output to the console. Default: false")
+	flag.BoolVar(&opts.Version, "version", false, "Prints the current Goke version")
 	flag.Parse()
 
 	return opts

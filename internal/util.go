@@ -10,14 +10,6 @@ import (
 	"os"
 )
 
-type Options struct {
-	ClearCache bool
-	Watch      bool
-	Force      bool
-	Init       bool
-	Quiet      bool
-}
-
 func GokeFiles() []string {
 	return []string{"goke.yml", "goke.yaml"}
 }

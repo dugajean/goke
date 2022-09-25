@@ -66,11 +66,15 @@ $ goke greet-loki
 $ goke greet-pepper
 ```
 
-**Additional flags:**
+**Available flags:**
 
-* `--watch`: Runs the given command in _watch_ mode, meaning it will watch the files under `files:` and rerun the command whenever they change
-* `--force`: Runs the given command regardless whether the files under `files:` have changed
-* `--no-cache` : Goke caches the given configuration to speed up execution and avoid parsing the configuration on every run. Clear the cache if you are changing your configuration
+| Flag | What it does |
+|---|---|
+| `--init` | Creates a simple `goke.yml` file in the current directory, if one doesn't already exist |
+| `--version` | Prints the current version of goke (works only with Homebrew installations) |
+| `--watch` | Runs the given command in _watch_ mode, meaning it will watch the files under `files:` and rerun the command whenever they change |
+| `--force` | Runs the given command regardless whether the files under `files:` have changed |
+| `--no-cache` | Goke caches the given configuration to speed up execution and avoid parsing the configuration on every run. Clear the cache if you are changing your configuration |
 
 ## Tests
 Goke has some unit test coverage. PR’s are welcome to add more tests.
