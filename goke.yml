@@ -2,6 +2,7 @@ global:
   environment:
     BINARY: "goke"
     LOKI_CMD: '$(echo "$LOKI")'
+    THOR: "LORD OF LIGHTNING"
 
 build: 
   files: [cmd/cli/*.go, internal/*]
@@ -23,3 +24,11 @@ greet-cats:
     - 'echo "Hello Frey"'
     - 'echo "Hello Sunny"'
     - "greet-loki"
+
+greet-thor: 
+  run:
+    - "echo 'Hello ${THOR}'"
+    - "echo 'Hello ${THOR_CMD}'"
+  env:
+    THOR: "LORD OF THUNDER"
+    THOR_CMD: '$(echo ${THOR})'
