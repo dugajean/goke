@@ -15,8 +15,9 @@ import (
 type (
 	Task struct {
 		Name  string
-		Files []string `yaml:"files,omitempty"`
-		Run   []string `yaml:"run"`
+		Files []string          `yaml:"files,omitempty"`
+		Run   []string          `yaml:"run"`
+		Env   map[string]string `yaml:"env,omitempty"`
 	}
 
 	Global struct {
@@ -134,6 +135,12 @@ func (p *Parser) parseTasks() error {
 			p.replaceEnvironmentVariables(re, &tasks[k].Run[i])
 		}
 
+		vars, err := p.setEnvVariables(c.Env)
+		if err != nil {
+			return err
+		}
+
+		c.Env = vars
 		c.Name = k
 		tasks[k] = c
 	}
@@ -153,33 +160,45 @@ func (p *Parser) parseGlobal() error {
 		return err
 	}
 
+	vars, err := p.setEnvVariables(g.Shared.Environment)
+	if err != nil {
+		return err
+	}
+
+	g.Shared.Environment = vars
+	p.Global = g
+
+	return nil
+}
+
+// Parses system commands and set environment variables.
+func (p *Parser) setEnvVariables(vars map[string]string) (map[string]string, error) {
+	retVars := make(map[string]string)
 	re := regexp.MustCompile(osCommandRegexp)
-	for k, v := range g.Shared.Environment {
+	for k, v := range vars {
 		_, cmd := p.parseSystemCmd(re, v)
 
 		if cmd == "" {
-			g.Shared.Environment[k] = v
-			p.std.Setenv(k, v)
+			retVars[k] = v
+			_ = os.Setenv(k, v)
 			continue
 		}
 
 		splitCmd, err := ParseCommandLine(os.ExpandEnv(cmd))
 		if err != nil {
-			return err
+			return retVars, err
 		}
 
 		out, err := exec.Command(splitCmd[0], splitCmd[1:]...).Output()
 		if err != nil {
-			return err
+			return retVars, err
 		}
 
-		g.Shared.Environment[k] = string(out)
-		p.std.Setenv(k, string(out))
+		retVars[k] = string(out)
+		_ = os.Setenv(k, string(out))
 	}
 
-	p.Global = g
-
-	return nil
+	return retVars, nil
 }
 
 // Parses the interpolated system commands, ie. "Hello $(echo 'World')" and returns it.
