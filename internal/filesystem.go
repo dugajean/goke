@@ -7,6 +7,7 @@ package internal
 import (
 	"io/fs"
 	"os"
+	"path/filepath"
 )
 
 type FileSystem interface {
@@ -17,38 +18,43 @@ type FileSystem interface {
 	FileExists(filename string) bool
 	Remove(name string) error
 	TempDir() string
+	Glob(path string) ([]string, error)
 }
 
 type LocalFileSystem struct{}
 
-func (std *LocalFileSystem) ReadFile(name string) ([]byte, error) {
+func (fs *LocalFileSystem) ReadFile(name string) ([]byte, error) {
 	return os.ReadFile(name)
 }
 
-func (std *LocalFileSystem) WriteFile(name string, data []byte, perm fs.FileMode) error {
+func (fs *LocalFileSystem) WriteFile(name string, data []byte, perm fs.FileMode) error {
 	return os.WriteFile(name, data, perm)
 }
 
-func (std *LocalFileSystem) Getwd() (dir string, err error) {
+func (fs *LocalFileSystem) Getwd() (dir string, err error) {
 	return os.Getwd()
 }
 
-func (std *LocalFileSystem) Stat(name string) (fs.FileInfo, error) {
+func (fs *LocalFileSystem) Stat(name string) (fs.FileInfo, error) {
 	return os.Stat(name)
 }
 
-func (std *LocalFileSystem) Remove(name string) error {
+func (fs *LocalFileSystem) Remove(name string) error {
 	return os.Remove(name)
 }
 
-func (std *LocalFileSystem) TempDir() string {
+func (fs *LocalFileSystem) TempDir() string {
 	return os.TempDir()
 }
 
-func (std *LocalFileSystem) FileExists(filename string) bool {
+func (fs *LocalFileSystem) FileExists(filename string) bool {
 	info, err := os.Stat(filename)
 	if os.IsNotExist(err) {
 		return false
 	}
 	return !info.IsDir()
+}
+
+func (fs *LocalFileSystem) Glob(path string) ([]string, error) {
+	return filepath.Glob(path)
 }

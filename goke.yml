@@ -13,7 +13,6 @@ genmocks:
     - "mockery --name=FileSystem --recursive --output=internal/tests --outpkg=tests --filename=filesystem_mock.go"
 
 greet-cats:
-  files: [cmd/cli/*]
   run:
     - 'echo "Hello Frey"'
-    - 'echo "Hello Sunny"'
+    - 'echo "Hello Bunny"'

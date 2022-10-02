@@ -1,11 +1,12 @@
 package internal
 
 import (
+	"os"
 	"testing"
 
 	"github.com/dugajean/goke/internal/tests"
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/require"
 )
 
 var yamlConfigStub = `
@@ -42,78 +43,111 @@ greet-cats:
     - 'echo "Hello Sunny"'
     - "greet-loki"`
 
-var options = Options{
+var clearCacheOpts = Options{
 	ClearCache: true,
 }
 
-func TestNewParser(t *testing.T) {
+var baseOptions = Options{}
+
+func mockCacheDoesNotExist(t *testing.T) *tests.FileSystem {
 	fsMock := tests.NewFileSystem(t)
 	fsMock.On("TempDir").Return("path/to/temp")
 	fsMock.On("Getwd").Return("path/to/cwd", nil)
-	fsMock.On("FileExists", mock.Anything).Return(false)
+	fsMock.On("FileExists", mock.Anything).Return(false).Twice()
 
-	parser := NewParser(yamlConfigStub, &options, fsMock)
-	assert.NotNil(t, parser)
+	return fsMock
+}
+
+func mockCacheDoesNotExistOnce(t *testing.T) *tests.FileSystem {
+	fsMock := tests.NewFileSystem(t)
+	fsMock.On("TempDir").Return("path/to/temp")
+	fsMock.On("Getwd").Return("path/to/cwd", nil)
+	fsMock.On("FileExists", mock.Anything).Return(false).Once()
+	fsMock.On("FileExists", mock.Anything).Return(true).Once()
+
+	return fsMock
+}
+
+func mockCacheExists(t *testing.T) *tests.FileSystem {
+	fsMock := tests.NewFileSystem(t)
+	fsMock.On("TempDir").Return("path/to/temp")
+	fsMock.On("Getwd").Return("path/to/cwd", nil)
+	fsMock.On("FileExists", mock.Anything).Return(true).Twice()
+
+	return fsMock
+}
+
+func TestNewParserWithoutCache(t *testing.T) {
+	fsMock := mockCacheDoesNotExist(t)
+	parser := NewParser(yamlConfigStub, &clearCacheOpts, fsMock)
+	require.NotNil(t, parser)
+}
+
+func TestNewParserWithCache(t *testing.T) {
+	fsMock := mockCacheDoesNotExistOnce(t)
+	fsMock.On("ReadFile", mock.Anything).Return([]byte(tests.ReadFileBase64), nil)
+
+	parser := NewParser(yamlConfigStub, &clearCacheOpts, fsMock)
+	require.NotNil(t, parser)
+}
+
+func TestNewParserWithCacheAndWithoutClearCacheFlag(t *testing.T) {
+	fsMock := mockCacheExists(t)
+	fsMock.On("Stat", mock.Anything).Return(tests.MemFileInfo{}, nil).Twice()
+	fsMock.On("ReadFile", mock.Anything).Return([]byte(tests.ReadFileBase64), nil).Once()
+
+	parser := NewParser(yamlConfigStub, &baseOptions, fsMock)
+	require.NotNil(t, parser)
+}
+
+func TestNewParserWithShouldClearCacheTrue(t *testing.T) {
+	fsMock := tests.NewFileSystem(t)
+	fsMock.On("TempDir").Return("path/to/temp")
+	fsMock.On("Getwd").Return("path/to/cwd", nil)
+	fsMock.On("FileExists", mock.Anything).Return(true).Once()
+	fsMock.On("FileExists", mock.Anything).Return(false).Once()
+	fsMock.On("Remove", mock.Anything).Return(nil)
+
+	parser := NewParser(yamlConfigStub, &clearCacheOpts, fsMock)
+	require.NotNil(t, parser)
 }
 
 func TestTaskParsing(t *testing.T) {
-	fsMock := tests.NewFileSystem(t)
-	fsMock.On("TempDir").Return("path/to/temp")
-	fsMock.On("Getwd").Return("path/to/cwd", nil)
-	fsMock.On("FileExists", mock.Anything).Return(true)
-	fsMock.On("Remove", mock.Anything).Return(nil)
-	fsMock.On("ReadFile", mock.Anything).Return([]byte(tests.ReadFileBase64), nil)
-
-	parser := NewParser(yamlConfigStub, &options, fsMock)
+	fsMock := mockCacheDoesNotExist(t)
+	fsMock.On("Glob", mock.Anything).Return([]string{"foo", "bar"}, nil).Once()
+	parser := NewParser(yamlConfigStub, &clearCacheOpts, fsMock)
 
 	parser.parseTasks()
-	assert.NotNil(t, parser.Tasks)
 
-	assert.NotNil(t, parser.Tasks["greet-loki"])
-	assert.NotNil(t, parser.Tasks["greet-cats"])
-	assert.NotNil(t, parser.Tasks["greet-lisha"])
+	require.NotNil(t, parser.Tasks["greet-loki"])
+	require.NotNil(t, parser.Tasks["greet-cats"])
+	require.NotNil(t, parser.Tasks["greet-lisha"])
 }
 
 func TestGlobalsParsing(t *testing.T) {
-	fsMock := tests.NewFileSystem(t)
-	fsMock.On("TempDir").Return("path/to/temp")
-	fsMock.On("Getwd").Return("path/to/cwd", nil)
-	fsMock.On("FileExists", mock.Anything).Return(false)
-
-	parser := NewParser(yamlConfigStub, &options, fsMock)
+	fsMock := mockCacheDoesNotExist(t)
+	parser := NewParser(yamlConfigStub, &clearCacheOpts, fsMock)
 
 	parser.parseGlobal()
-	assert.Equal(t, "foo", parser.Global.Shared.Environment["FOO"])
-	assert.Equal(t, "bar\n", parser.Global.Shared.Environment["BAR"])
-	assert.Equal(t, "baz", parser.Global.Shared.Environment["BAZ"])
+
+	require.Equal(t, "foo", os.Getenv("FOO"))
+	require.Equal(t, "bar\n", os.Getenv("BAR"))
+	require.Equal(t, "baz", os.Getenv("BAZ"))
+
+	require.Equal(t, "foo", parser.Global.Shared.Environment["FOO"])
+	require.Equal(t, "bar\n", parser.Global.Shared.Environment["BAR"])
+	require.Equal(t, "baz", parser.Global.Shared.Environment["BAZ"])
 }
 
-func TestTaskFilesExpansion(t *testing.T) {
-	fsMock := tests.NewFileSystem(t)
-	fsMock.On("TempDir").Return("path/to/temp")
-	fsMock.On("Getwd").Return("path/to/cwd", nil)
-	fsMock.On("FileExists", mock.Anything).Return(true)
-	fsMock.On("Remove", mock.Anything).Return(nil)
-	fsMock.On("ReadFile", mock.Anything).Return([]byte(tests.ReadFileBase64), nil)
+func TestTaskGlobFilesExpansion(t *testing.T) {
+	expectedGlob := []string{"foo", "bar"}
 
-	parser := NewParser(yamlConfigStub, &options, fsMock)
+	fsMock := mockCacheDoesNotExist(t)
+	fsMock.On("Glob", mock.Anything).Return(expectedGlob, nil).Once()
+	parser := NewParser(yamlConfigStub, &clearCacheOpts, fsMock)
+
 	parser.parseTasks()
-
 	greetCatsTask := parser.Tasks["greet-cats"]
-	assert.NotNil(t, greetCatsTask)
-}
 
-func TestParserWithoutCache(t *testing.T) {
-	fsMock := tests.NewFileSystem(t)
-	fsMock.On("TempDir").Return("path/to/temp")
-	fsMock.On("Getwd").Return("path/to/cwd", nil)
-	fsMock.On("FileExists", mock.Anything).Return(true)
-	fsMock.On("Remove", mock.Anything).Return(nil)
-	fsMock.On("ReadFile", mock.Anything).Return([]byte(tests.ReadFileBase64), nil)
-
-	parser := NewParser(yamlConfigStub, &options, fsMock)
-	parser.parseTasks()
-
-	greetCatsTask := parser.Tasks["greet-cats"]
-	assert.NotNil(t, greetCatsTask)
+	require.Equal(t, expectedGlob, greetCatsTask.Files)
 }
