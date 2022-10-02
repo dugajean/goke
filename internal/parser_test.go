@@ -2,6 +2,7 @@ package internal
 
 import (
 	"os"
+	"strings"
 	"testing"
 
 	"github.com/dugajean/goke/internal/tests"
@@ -131,11 +132,11 @@ func TestGlobalsParsing(t *testing.T) {
 	parser.parseGlobal()
 
 	require.Equal(t, "foo", os.Getenv("FOO"))
-	require.Equal(t, "bar\n", os.Getenv("BAR"))
+	require.True(t, strings.Contains(os.Getenv("BAR"), "bar"))
 	require.Equal(t, "baz", os.Getenv("BAZ"))
 
 	require.Equal(t, "foo", parser.Global.Shared.Environment["FOO"])
-	require.Equal(t, "bar\n", parser.Global.Shared.Environment["BAR"])
+	require.True(t, strings.Contains(parser.Global.Shared.Environment["BAR"], "bar"))
 	require.Equal(t, "baz", parser.Global.Shared.Environment["BAZ"])
 }
 
