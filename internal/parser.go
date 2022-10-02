@@ -46,7 +46,7 @@ type (
 var osCommandRegexp = regexp.MustCompile(`\$\((.+)\)`)
 var parserString string
 
-// NewParser Provide a parser instance which can be either a blank one,
+// NewParser creates a parser instance which can be either a blank one,
 // or one provided  from the cache, which gets deserialized.
 func NewParser(cfg string, opts *Options, fs FileSystem) Parser {
 	p := Parser{}
@@ -56,8 +56,7 @@ func NewParser(cfg string, opts *Options, fs FileSystem) Parser {
 
 	tempFile := path.Join(p.fs.TempDir(), p.getTempFileName())
 
-	// Clear cache if CLI flag was provided.
-	if opts.ClearCache && p.fs.FileExists(tempFile) {
+	if p.shouldClearCache(tempFile) {
 		_ = p.fs.Remove(tempFile)
 	}
 
@@ -76,7 +75,7 @@ func NewParser(cfg string, opts *Options, fs FileSystem) Parser {
 	return GOBDeserialize(pStr, &p)
 }
 
-// Bootstrap Do the parsing process or skip if cached.
+// Bootstrap does the parsing process or skip if cached.
 func (p *Parser) Bootstrap() {
 	// Nothing too bootstrap if cached.
 	if parserString != "" {
@@ -156,12 +155,14 @@ func (p *Parser) parseGlobal() error {
 	for k, v := range g.Shared.Environment {
 		_, cmd := p.parseSystemCmd(osCommandRegexp, v)
 
+		// Not a command to execute in a shell.
 		if cmd == "" {
 			g.Shared.Environment[k] = v
 			_ = os.Setenv(k, v)
 			continue
 		}
 
+		// A command to execute in a shell.
 		splitCmd, err := ParseCommandLine(os.ExpandEnv(cmd))
 		if err != nil {
 			return err
@@ -204,11 +205,12 @@ func (p *Parser) replaceEnvironmentVariables(re *regexp.Regexp, str *string) {
 	}
 }
 
+// Expand the path glob and returns all paths in an array
 func (p *Parser) expandFilePaths(file string) ([]string, error) {
 	filePaths := []string{}
 
 	if strings.Contains(file, "*") {
-		files, err := filepath.Glob(file)
+		files, err := p.fs.Glob(file)
 		if err != nil {
 			return nil, err
 		}
@@ -223,7 +225,30 @@ func (p *Parser) expandFilePaths(file string) ([]string, error) {
 	return filePaths, nil
 }
 
+// Retrieves the temp file name
 func (p *Parser) getTempFileName() string {
 	cwd, _ := p.fs.Getwd()
 	return "goke-" + strings.Replace(cwd, string(filepath.Separator), "-", -1)
+}
+
+// Determines whether the parser cache should be cleaned or not
+func (p *Parser) shouldClearCache(tempFile string) bool {
+	tempFileExists := p.fs.FileExists(tempFile)
+	mustCleanCache := false
+
+	if !p.options.ClearCache && tempFileExists {
+		tempStat, _ := p.fs.Stat(tempFile)
+		tempModTime := tempStat.ModTime().Unix()
+
+		configStat, _ := p.fs.Stat(CurrentConfigFile())
+		configModTime := configStat.ModTime().Unix()
+
+		mustCleanCache = tempModTime < configModTime
+	}
+
+	if p.options.ClearCache && tempFileExists {
+		mustCleanCache = true
+	}
+
+	return mustCleanCache
 }

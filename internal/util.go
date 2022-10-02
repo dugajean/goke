@@ -14,6 +14,16 @@ func GokeFiles() []string {
 	return []string{"goke.yml", "goke.yaml"}
 }
 
+func CurrentConfigFile() string {
+	for _, f := range GokeFiles() {
+		if FileExists(f) {
+			return f
+		}
+	}
+
+	return ""
+}
+
 func ReadYamlConfig() (string, error) {
 	for _, f := range GokeFiles() {
 		content, err := os.ReadFile(f)

@@ -24,7 +24,9 @@ func GetFileSystemMock(t *testing.T) any {
 	return fsMock
 }
 
-type MemFileInfo struct{}
+type MemFileInfo struct {
+	Mtime time.Time
+}
 
 func (fi MemFileInfo) Name() string {
 	return "foo"
@@ -39,6 +41,10 @@ func (fi MemFileInfo) Mode() fs.FileMode {
 }
 
 func (fi MemFileInfo) ModTime() time.Time {
+	if !fi.Mtime.IsZero() {
+		return fi.Mtime
+	}
+
 	return time.Date(2022, time.December, 24, 1, 1, 1, 1, time.UTC)
 }
 
