@@ -1,4 +1,7 @@
 #!/usr/bin/env bash
 
+# Basic lint check
+go vet ./...
+
 # Ensure tests pass before committing.
 go test ./...
