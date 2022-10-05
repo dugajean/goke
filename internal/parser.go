@@ -15,9 +15,9 @@ import (
 type (
 	Task struct {
 		Name  string
-		Files []string `yaml:"files,omitempty"`
-		Run   []string `yaml:"run"`
-        Env   map[string]string `yaml:"env,omitempty"`
+		Files []string          `yaml:"files,omitempty"`
+		Run   []string          `yaml:"run"`
+		Env   map[string]string `yaml:"env,omitempty"`
 	}
 
 	Global struct {
@@ -134,12 +134,13 @@ func (p *Parser) parseTasks() error {
 			p.replaceEnvironmentVariables(osCommandRegexp, &tasks[k].Run[i])
 		}
 
-        vars, err := p.setEnvVariables(c.Env)
-        if err != nil {
-            return err
-        }
-
-        c.Env = vars
+		if len(c.Env) != 0 {
+			vars, err := p.setEnvVariables(c.Env)
+			if err != nil {
+				return err
+			}
+			c.Env = vars
+		}
 		c.Name = k
 		tasks[k] = c
 	}
@@ -159,12 +160,12 @@ func (p *Parser) parseGlobal() error {
 		return err
 	}
 
-    vars, err := p.setEnvVariables(g.Shared.Environment)
-    if err != nil {
-        return nil
-    }
+	vars, err := p.setEnvVariables(g.Shared.Environment)
+	if err != nil {
+		return nil
+	}
 
-    g.Shared.Environment = vars
+	g.Shared.Environment = vars
 	p.Global = g
 
 	return nil
@@ -262,8 +263,9 @@ func (p *Parser) setEnvVariables(vars map[string]string) (map[string]string, err
 			return retVars, err
 		}
 
-		retVars[k] = string(out)
-		_ = os.Setenv(k, string(out))
+        outStr := strings.TrimSuffix(string(out), "\n")
+		retVars[k] = outStr
+		_ = os.Setenv(k, outStr)
 	}
 
 	return retVars, nil
