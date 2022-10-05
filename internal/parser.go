@@ -263,7 +263,7 @@ func (p *Parser) setEnvVariables(vars map[string]string) (map[string]string, err
 			return retVars, err
 		}
 
-        outStr := strings.TrimSuffix(string(out), "\n")
+        outStr := strings.TrimSpace(string(out))
 		retVars[k] = outStr
 		_ = os.Setenv(k, outStr)
 	}
