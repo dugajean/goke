@@ -169,15 +169,15 @@ func TestSetEnvVariables(t *testing.T) {
 	}
 
 	want := map[string]string{
-        "THOR": "Lord of thunder",
-        "THOR_CMD": "Hello Thor",
-    }
+		"THOR":     "Lord of thunder",
+		"THOR_CMD": "Hello Thor",
+	}
 
 	got, _ := parser.setEnvVariables(values)
 	require.Equal(t, want["THOR"], os.Getenv("THOR"))
 	require.Equal(t, want["THOR_CMD"], os.Getenv("THOR_CMD"))
 
-    for k := range got {
-        require.Equal(t, want[k], got[k])
-    }
+	for k := range got {
+		require.Equal(t, want[k], got[k])
+	}
 }
