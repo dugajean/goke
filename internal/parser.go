@@ -242,6 +242,7 @@ func (p *Parser) shouldClearCache(tempFile string) bool {
 	return mustCleanCache
 }
 
+// prase system commands and store results to env
 func (p *Parser) setEnvVariables(vars map[string]string) (map[string]string, error) {
 	retVars := make(map[string]string)
 	for k, v := range vars {
