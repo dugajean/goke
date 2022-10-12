@@ -12,37 +12,50 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-type (
-	Task struct {
-		Name  string
-		Files []string          `yaml:"files,omitempty"`
-		Run   []string          `yaml:"run"`
-		Env   map[string]string `yaml:"env,omitempty"`
-	}
+type Parser interface {
+	Bootstrap()
+	GetGlobal() *Global
+	GetTask(string) (Task, bool)
+	GetFilePaths() []string
+	parseTasks() error
+	parseGlobal() error
+	parseSystemCmd(*regexp.Regexp, string) (string, string)
+	replaceEnvironmentVariables(*regexp.Regexp, *string)
+	expandFilePaths(string) ([]string, error)
+	getTempFileName() string
+	shouldClearCache(string) bool
+	setEnvVariables(vars map[string]string) (map[string]string, error)
+}
 
-	Global struct {
-		Shared struct {
-			Environment map[string]string `yaml:"environment,omitempty"`
-			Events      struct {
-				BeforeEachRun  []string `yaml:"before_each_run,omitempty"`
-				AfterEachRun   []string `yaml:"after_each_run,omitempty"`
-				BeforeEachTask []string `yaml:"before_each_task,omitempty"`
-				AfterEachTask  []string `yaml:"after_each_task,omitempty"`
-			} `yaml:"events,omitempty"`
-		} `yaml:"global,omitempty"`
-	}
+type Task struct {
+	Name  string
+	Files []string          `yaml:"files,omitempty"`
+	Run   []string          `yaml:"run"`
+	Env   map[string]string `yaml:"env,omitempty"`
+}
 
-	Parser struct {
-		Tasks     taskList
-		FilePaths []string
-		config    string
-		options   Options
-		fs        FileSystem
-		Global
-	}
+type Global struct {
+	Shared struct {
+		Environment map[string]string `yaml:"environment,omitempty"`
+		Events      struct {
+			BeforeEachRun  []string `yaml:"before_each_run,omitempty"`
+			AfterEachRun   []string `yaml:"after_each_run,omitempty"`
+			BeforeEachTask []string `yaml:"before_each_task,omitempty"`
+			AfterEachTask  []string `yaml:"after_each_task,omitempty"`
+		} `yaml:"events,omitempty"`
+	} `yaml:"global,omitempty"`
+}
 
-	taskList map[string]Task
-)
+type parser struct {
+	Tasks     taskList
+	FilePaths []string
+	config    string
+	options   Options
+	fs        FileSystem
+	Global
+}
+
+type taskList map[string]Task
 
 var osCommandRegexp = regexp.MustCompile(`\$\((.+)\)`)
 var parserString string
@@ -50,7 +63,7 @@ var parserString string
 // NewParser creates a parser instance which can be either a blank one,
 // or one provided  from the cache, which gets deserialized.
 func NewParser(cfg string, opts *Options, fs FileSystem) Parser {
-	p := Parser{}
+	p := parser{}
 	p.fs = fs
 	p.config = cfg
 	p.options = *opts
@@ -62,7 +75,7 @@ func NewParser(cfg string, opts *Options, fs FileSystem) Parser {
 	}
 
 	if !p.fs.FileExists(tempFile) {
-		return p
+		return &p
 	}
 
 	pBytes, err := p.fs.ReadFile(tempFile)
@@ -73,11 +86,12 @@ func NewParser(cfg string, opts *Options, fs FileSystem) Parser {
 	pStr := string(pBytes)
 	parserString = pStr
 
-	return GOBDeserialize(pStr, &p)
+	p = GOBDeserialize(pStr, &p)
+	return &p
 }
 
 // Bootstrap does the parsing process or skip if cached.
-func (p *Parser) Bootstrap() {
+func (p *parser) Bootstrap() {
 	// Nothing too bootstrap if cached.
 	if parserString != "" {
 		return
@@ -93,7 +107,7 @@ func (p *Parser) Bootstrap() {
 		log.Fatal(err)
 	}
 
-	pStr := GOBSerialize(*p)
+	pStr := GOBSerialize(p)
 	err = p.fs.WriteFile(path.Join(p.fs.TempDir(), p.getTempFileName()), []byte(pStr), 0644)
 
 	if err != nil && !p.options.Quiet {
@@ -101,9 +115,22 @@ func (p *Parser) Bootstrap() {
 	}
 }
 
+func (p *parser) GetGlobal() *Global {
+	return &p.Global
+}
+
+func (p *parser) GetTask(taskName string) (Task, bool) {
+	task, ok := p.Tasks[taskName]
+	return task, ok
+}
+
+func (p *parser) GetFilePaths() []string {
+	return p.FilePaths
+}
+
 // Parses the individual user defined tasks in the YAML config,
 // and processes the dynamic parts of both "run" and "files" sections.
-func (p *Parser) parseTasks() error {
+func (p *parser) parseTasks() error {
 	var tasks taskList
 
 	if err := yaml.Unmarshal([]byte(p.config), &tasks); err != nil {
@@ -153,7 +180,7 @@ func (p *Parser) parseTasks() error {
 
 // Parses the "global" key in the yaml config and adds it to the parser.
 // Also sets all variables under global.environment as OS environment variables.
-func (p *Parser) parseGlobal() error {
+func (p *parser) parseGlobal() error {
 	var g Global
 
 	if err := yaml.Unmarshal([]byte(p.config), &g); err != nil {
@@ -173,7 +200,7 @@ func (p *Parser) parseGlobal() error {
 
 // Parses the interpolated system commands, ie. "Hello $(echo 'World')" and returns it.
 // Returns the command wrapper in $() and without the wrapper.
-func (p *Parser) parseSystemCmd(re *regexp.Regexp, str string) (string, string) {
+func (p *parser) parseSystemCmd(re *regexp.Regexp, str string) (string, string) {
 	match := re.FindAllStringSubmatch(str, -1)
 
 	if len(match) > 0 && len(match[0]) > 0 {
@@ -185,7 +212,7 @@ func (p *Parser) parseSystemCmd(re *regexp.Regexp, str string) (string, string) 
 
 // Replace the placeholders with actual environment variable values in string pointer.
 // Given that a string pointer must be provided, the replacement happens in place.
-func (p *Parser) replaceEnvironmentVariables(re *regexp.Regexp, str *string) {
+func (p *parser) replaceEnvironmentVariables(re *regexp.Regexp, str *string) {
 	resolved := *str
 	raw, env := p.parseSystemCmd(re, resolved)
 
@@ -195,7 +222,7 @@ func (p *Parser) replaceEnvironmentVariables(re *regexp.Regexp, str *string) {
 }
 
 // Expand the path glob and returns all paths in an array
-func (p *Parser) expandFilePaths(file string) ([]string, error) {
+func (p *parser) expandFilePaths(file string) ([]string, error) {
 	filePaths := []string{}
 
 	if strings.Contains(file, "*") {
@@ -215,13 +242,13 @@ func (p *Parser) expandFilePaths(file string) ([]string, error) {
 }
 
 // Retrieves the temp file name
-func (p *Parser) getTempFileName() string {
+func (p *parser) getTempFileName() string {
 	cwd, _ := p.fs.Getwd()
 	return "goke-" + strings.Replace(cwd, string(filepath.Separator), "-", -1)
 }
 
 // Determines whether the parser cache should be cleaned or not
-func (p *Parser) shouldClearCache(tempFile string) bool {
+func (p *parser) shouldClearCache(tempFile string) bool {
 	tempFileExists := p.fs.FileExists(tempFile)
 	mustCleanCache := false
 
@@ -243,7 +270,7 @@ func (p *Parser) shouldClearCache(tempFile string) bool {
 }
 
 // prase system commands and store results to env
-func (p *Parser) setEnvVariables(vars map[string]string) (map[string]string, error) {
+func (p *parser) setEnvVariables(vars map[string]string) (map[string]string, error) {
 	retVars := make(map[string]string)
 	for k, v := range vars {
 		_, cmd := p.parseSystemCmd(osCommandRegexp, v)
