@@ -14,6 +14,15 @@ var lockfileOpts = Options{
 	ClearCache: true,
 }
 
+var dotGokeFile = `{
+  "/path/to/project1": {
+    "path/to/file": 1664738433
+  },
+  "/path/to/project2": {
+    "./path/to/file": 1663812584
+  }
+}`
+
 func TestNewLockfile(t *testing.T) {
 	fsMock := tests.NewFileSystem(t)
 	lockfile := NewLockfile(files, &lockfileOpts, fsMock)
@@ -39,7 +48,6 @@ func TestGenerateLockfileWithFalse(t *testing.T) {
 	fsMock.On("Getwd").Return("path/to/cwd", nil)
 	fsMock.On("Stat", mock.Anything).Return(tests.MemFileInfo{}, nil)
 	fsMock.On("WriteFile", mock.Anything, mock.Anything, mock.Anything).Return(nil)
-	// fsMock.On("FileExists", mock.Anything).Return(false)
 
 	lockfile := NewLockfile(files, &lockfileOpts, fsMock)
 	err := lockfile.generateLockfile(true)

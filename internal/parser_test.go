@@ -56,6 +56,8 @@ var clearCacheOpts = Options{
 
 var baseOptions = Options{}
 
+var expectedGlob = []string{"foo", "bar"}
+
 func mockCacheDoesNotExist(t *testing.T) *tests.FileSystem {
 	fsMock := tests.NewFileSystem(t)
 	fsMock.On("TempDir").Return("path/to/temp")
@@ -151,10 +153,8 @@ func TestGlobalsParsing(t *testing.T) {
 }
 
 func TestTaskGlobFilesExpansion(t *testing.T) {
-	expectedGlob := []string{"foo", "bar"}
-
 	fsMock := mockCacheDoesNotExist(t)
-	fsMock.On("Glob", mock.Anything).Return(expectedGlob, nil).Once()
+	fsMock.On("Glob", mock.Anything).Return(expectedGlob, nil)
 	parser := NewParser(yamlConfigStub, &clearCacheOpts, fsMock)
 
 	parser.parseTasks()
