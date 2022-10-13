@@ -20,13 +20,17 @@ func main() {
 		os.Exit(1)
 	}
 
+	// Wrappers
 	fs := app.LocalFileSystem{}
+	proc := app.ShellProcess{}
+
+	// Main components
 	p := app.NewParser(cfg, &opts, &fs)
 	p.Bootstrap()
 
 	l := app.NewLockfile(p.GetFilePaths(), &opts, &fs)
 	l.Bootstrap()
 
-	e := app.NewExecutor(&p, &l, &opts)
+	e := app.NewExecutor(&p, &l, &opts, &proc)
 	e.Start(parseTaskName(argIndex))
 }

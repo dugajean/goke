@@ -3,7 +3,6 @@ package internal
 import (
 	"fmt"
 	"os"
-	"os/exec"
 	"time"
 
 	"github.com/theckman/yacspin"
@@ -33,10 +32,11 @@ type Executor struct {
 	lockfile Lockfile
 	spinner  *yacspin.Spinner
 	options  Options
+	process  Process
 }
 
 // Executor constructor.
-func NewExecutor(p *Parser, l *Lockfile, opts *Options) Executor {
+func NewExecutor(p *Parser, l *Lockfile, opts *Options, proc Process) Executor {
 	spinner, _ := yacspin.New(spinnerCfg)
 
 	return Executor{
@@ -44,6 +44,7 @@ func NewExecutor(p *Parser, l *Lockfile, opts *Options) Executor {
 		lockfile: *l,
 		spinner:  spinner,
 		options:  *opts,
+		process:  proc,
 	}
 }
 
@@ -238,7 +239,7 @@ func (e *Executor) runSysOrRecurse(cmd string, ch *chan Ref[string]) error {
 		}
 
 		if !e.options.Quiet {
-			fmt.Print(output.Value())
+			e.process.Fprint(os.Stdout, output.Value())
 		}
 	}
 
@@ -254,7 +255,7 @@ func (e *Executor) runSysCommand(c string, ch chan Ref[string]) {
 		return
 	}
 
-	out, err := exec.Command(splitCmd[0], splitCmd[1:]...).Output()
+	out, err := e.process.Execute(splitCmd[0], splitCmd[1:]...)
 	if err != nil {
 		ch <- NewRef("", err)
 		return
