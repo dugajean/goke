@@ -126,9 +126,12 @@ func TestTaskParsing(t *testing.T) {
 
 	parser.parseTasks()
 
-	require.NotNil(t, parser.Tasks["greet-loki"])
-	require.NotNil(t, parser.Tasks["greet-cats"])
-	require.NotNil(t, parser.Tasks["greet-lisha"])
+	greetLoki, _ := parser.GetTask("greet-loki")
+	greetCats, _ := parser.GetTask("greet-cats")
+	greetLisha, _ := parser.GetTask("greet-lisha")
+	require.NotNil(t, greetLoki)
+	require.NotNil(t, greetCats)
+	require.NotNil(t, greetLisha)
 }
 
 func TestGlobalsParsing(t *testing.T) {
@@ -141,9 +144,10 @@ func TestGlobalsParsing(t *testing.T) {
 	require.True(t, strings.Contains(os.Getenv("BAR"), "bar"))
 	require.Equal(t, "baz", os.Getenv("BAZ"))
 
-	require.Equal(t, "foo", parser.Global.Shared.Environment["FOO"])
-	require.True(t, strings.Contains(parser.Global.Shared.Environment["BAR"], "bar"))
-	require.Equal(t, "baz", parser.Global.Shared.Environment["BAZ"])
+	global := parser.GetGlobal()
+	require.Equal(t, "foo", global.Shared.Environment["FOO"])
+	require.True(t, strings.Contains(global.Shared.Environment["BAR"], "bar"))
+	require.Equal(t, "baz", global.Shared.Environment["BAZ"])
 }
 
 func TestTaskGlobFilesExpansion(t *testing.T) {
@@ -154,7 +158,7 @@ func TestTaskGlobFilesExpansion(t *testing.T) {
 	parser := NewParser(yamlConfigStub, &clearCacheOpts, fsMock)
 
 	parser.parseTasks()
-	greetCatsTask := parser.Tasks["greet-cats"]
+	greetCatsTask, _ := parser.GetTask("greet-cats")
 
 	require.Equal(t, expectedGlob, greetCatsTask.Files)
 }

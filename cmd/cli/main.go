@@ -24,7 +24,7 @@ func main() {
 	p := app.NewParser(cfg, &opts, &fs)
 	p.Bootstrap()
 
-	l := app.NewLockfile(p.FilePaths, &opts, &fs)
+	l := app.NewLockfile(p.GetFilePaths(), &opts, &fs)
 	l.Bootstrap()
 
 	e := app.NewExecutor(&p, &l, &opts)

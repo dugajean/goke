@@ -126,7 +126,8 @@ func (e *Executor) initTask(taskName string) Task {
 	}
 
 	e.mustExist(taskName)
-	return e.parser.Tasks[taskName]
+	task, _ := e.parser.GetTask(taskName)
+	return task
 }
 
 // Checks whether files have changed since the last run.
@@ -177,9 +178,10 @@ func (e *Executor) shouldDispatchRoutine(task Task, ch chan Ref[bool]) {
 // including any events that need to be run.
 func (e *Executor) dispatchTask(task Task, initialRun bool) error {
 	outputs := make(chan Ref[string])
+	global := e.parser.GetGlobal()
 
 	if initialRun {
-		for _, beforeEachCmd := range e.parser.Global.Shared.Events.BeforeEachTask {
+		for _, beforeEachCmd := range global.Shared.Events.BeforeEachTask {
 			err := e.runSysOrRecurse(beforeEachCmd, &outputs)
 
 			if err != nil {
@@ -190,7 +192,7 @@ func (e *Executor) dispatchTask(task Task, initialRun bool) error {
 
 	for _, mainCmd := range task.Run {
 		if initialRun {
-			for _, beforeEachCmd := range e.parser.Global.Shared.Events.BeforeEachRun {
+			for _, beforeEachCmd := range global.Shared.Events.BeforeEachRun {
 				if err := e.runSysOrRecurse(beforeEachCmd, &outputs); err != nil {
 					return err
 				}
@@ -202,7 +204,7 @@ func (e *Executor) dispatchTask(task Task, initialRun bool) error {
 		}
 
 		if initialRun {
-			for _, afterEachCmd := range e.parser.Global.Shared.Events.AfterEachRun {
+			for _, afterEachCmd := range global.Shared.Events.AfterEachRun {
 				if err := e.runSysOrRecurse(afterEachCmd, &outputs); err != nil {
 					return err
 				}
@@ -210,7 +212,7 @@ func (e *Executor) dispatchTask(task Task, initialRun bool) error {
 		}
 	}
 
-	for _, afterEachCmd := range e.parser.Global.Shared.Events.AfterEachTask {
+	for _, afterEachCmd := range global.Shared.Events.AfterEachTask {
 		if err := e.runSysOrRecurse(afterEachCmd, &outputs); err != nil {
 			return err
 		}
@@ -225,8 +227,8 @@ func (e *Executor) runSysOrRecurse(cmd string, ch *chan Ref[string]) error {
 		e.spinner.Message(fmt.Sprintf("Running: %s", cmd))
 	}
 
-	if _, ok := e.parser.Tasks[cmd]; ok {
-		return e.dispatchTask(e.parser.Tasks[cmd], false)
+	if task, ok := e.parser.GetTask(cmd); ok {
+		return e.dispatchTask(task, false)
 	} else {
 		go e.runSysCommand(cmd, *ch)
 		output := <-*ch
@@ -262,7 +264,7 @@ func (e *Executor) runSysCommand(c string, ch chan Ref[string]) {
 }
 
 func (e *Executor) mustExist(taskName string) {
-	if _, ok := e.parser.Tasks[taskName]; !ok {
+	if _, ok := e.parser.GetTask(taskName); !ok {
 		e.logExit("error", fmt.Sprintf("Command '%s' not found\n", taskName))
 	}
 }
