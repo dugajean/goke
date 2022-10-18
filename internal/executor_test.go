@@ -1,42 +1,86 @@
 package internal
 
 import (
+	"context"
 	"testing"
+	"time"
 
 	"github.com/dugajean/goke/internal/tests"
 	"github.com/stretchr/testify/mock"
 )
 
-func getDependencies(t *testing.T) (*Parser, *Lockfile, *tests.Process) {
+func getDependencies(t *testing.T, opts *Options) (*Parser, *Lockfile, *tests.Process, FileSystem) {
 	fsMock := mockCacheDoesNotExist(t)
 	fsMock.On("FileExists", mock.Anything).Return(false)
 	fsMock.On("WriteFile", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	fsMock.On("Stat", mock.Anything).Return(tests.MemFileInfo{}, nil)
 	fsMock.On("ReadFile", mock.Anything).Return([]byte(dotGokeFile), nil)
-	fsMock.On("Glob", mock.Anything).Return(expectedGlob, nil)
+	fsMock.On("Glob", mock.Anything).Return(tests.ExpectedGlob, nil)
 
 	process := tests.NewProcess(t)
 
-	parser := NewParser(yamlConfigStub, &clearCacheOpts, fsMock)
-	lockfile := NewLockfile(files, &clearCacheOpts, fsMock)
+	parser := NewParser(tests.YamlConfigStub, opts, fsMock)
+	lockfile := NewLockfile(files, opts, fsMock)
 
 	parser.Bootstrap()
 	lockfile.Bootstrap()
 
-	return &parser, &lockfile, process
+	return &parser, &lockfile, process, fsMock
 }
 
-func TestExecutingCommandOnce(t *testing.T) {
-	parser, lockfile, process := getDependencies(t)
+func TestStartNonWatch(t *testing.T) {
+	parser, lockfile, process, fsMock := getDependencies(t, &clearCacheOpts)
 
 	process.On("Execute", mock.Anything, mock.AnythingOfType("string")).Return([]byte("foo"), nil)
 	process.On("Fprint", mock.Anything, mock.AnythingOfType("string")).Return(10, nil)
 
-	executor := NewExecutor(parser, lockfile, &clearCacheOpts, process)
+	ctx := context.Background()
+	executor := NewExecutor(parser, lockfile, &clearCacheOpts, process, fsMock, &ctx)
 	executor.Start("greet-loki")
 
 	process.AssertNumberOfCalls(t, "Execute", 1)
 	process.AssertNumberOfCalls(t, "Fprint", 1)
 
 	process.AssertExpectations(t)
+}
+
+func TestStartWatch(t *testing.T) {
+	watchOpts := Options{
+		Watch:      true,
+		ClearCache: true,
+	}
+
+	parser, lockfile, process, fsMock := getDependencies(t, &watchOpts)
+
+	process.On("Execute", mock.Anything, mock.AnythingOfType("string")).Return([]byte("foo"), nil)
+	process.On("Fprint", mock.Anything, mock.AnythingOfType("string")).Return(10, nil)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
+	executor := NewExecutor(parser, lockfile, &watchOpts, process, fsMock, &ctx)
+	executor.Start("greet-cats")
+	cancel()
+
+	process.AssertNumberOfCalls(t, "Execute", 3)
+	process.AssertNumberOfCalls(t, "Fprint", 3)
+
+	process.AssertExpectations(t)
+}
+
+func TestStartWatchWithNoFiles(t *testing.T) {
+	watchOpts := Options{
+		Watch:      true,
+		ClearCache: true,
+	}
+
+	parser, lockfile, process, fsMock := getDependencies(t, &watchOpts)
+	process.On("Exit", mock.Anything).Return()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
+	executor := NewExecutor(parser, lockfile, &watchOpts, process, fsMock, &ctx)
+	executor.Start("greet-loki")
+	cancel()
+
+	process.AssertNotCalled(t, "Execute")
+	process.AssertNotCalled(t, "Fprint")
+	process.AssertNumberOfCalls(t, "Exit", 1)
 }
