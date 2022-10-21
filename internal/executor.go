@@ -5,6 +5,7 @@ import (
 	"os"
 	"time"
 
+	"github.com/dugajean/goke/internal/cli"
 	"github.com/theckman/yacspin"
 )
 
@@ -248,7 +249,7 @@ func (e *Executor) runSysOrRecurse(cmd string, ch *chan Ref[string]) error {
 
 // Executes the given string in the underlying OS.
 func (e *Executor) runSysCommand(c string, ch chan Ref[string]) {
-	splitCmd, err := ParseCommandLine(os.ExpandEnv(c))
+	splitCmd, err := cli.ParseCommandLine(os.ExpandEnv(c))
 
 	if err != nil {
 		ch <- NewRef("", err)

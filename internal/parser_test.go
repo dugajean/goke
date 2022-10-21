@@ -162,26 +162,3 @@ func TestTaskGlobFilesExpansion(t *testing.T) {
 
 	require.Equal(t, expectedGlob, greetCatsTask.Files)
 }
-
-func TestSetEnvVariables(t *testing.T) {
-	fsMock := mockCacheDoesNotExist(t)
-	parser := NewParser(yamlConfigStub, &clearCacheOpts, fsMock)
-
-	values := map[string]string{
-		"THOR":     "Lord of thunder",
-		"THOR_CMD": "$(echo 'Hello Thor')",
-	}
-
-	want := map[string]string{
-		"THOR":     "Lord of thunder",
-		"THOR_CMD": "Hello Thor",
-	}
-
-	got, _ := parser.setEnvVariables(values)
-	require.Equal(t, want["THOR"], os.Getenv("THOR"))
-	require.Equal(t, want["THOR_CMD"], os.Getenv("THOR_CMD"))
-
-	for k := range got {
-		require.Equal(t, want[k], got[k])
-	}
-}
