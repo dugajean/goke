@@ -12,6 +12,7 @@ on:
 
 jobs:
   ci:
+    timeout-minutes: 2
     strategy:
       fail-fast: false
       matrix:
