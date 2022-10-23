@@ -11,7 +11,7 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-type Parser interface {
+type Parseable interface {
 	Bootstrap()
 	GetGlobal() *Global
 	GetTask(string) (Task, bool)
@@ -58,7 +58,7 @@ var parserString string
 
 // NewParser creates a parser instance which can be either a blank one,
 // or one provided  from the cache, which gets deserialized.
-func NewParser(cfg string, opts *Options, fs FileSystem) Parser {
+func NewParser(cfg string, opts *Options, fs FileSystem) Parseable {
 	p := parser{}
 	p.fs = fs
 	p.config = cfg

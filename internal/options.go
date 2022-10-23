@@ -1,6 +1,8 @@
 package internal
 
 import (
+	"fmt"
+
 	"github.com/docopt/docopt-go"
 )
 
@@ -13,11 +15,13 @@ Usage:
   goke -i | --init
   goke -h | --help
   goke -v | --version
+	goke -t | --tasks
 
 Options:
   -h --help      Show this screen
   -v --version   Show version
   -i --init      Creates a goke.yaml file in the current directory
+  -t --tasks     Outputs a list of all task names
   -w --watch     Run task in watch mode
   -c --no-cache  Clears the program's cache
   -f --force     Runs the task even if files have not been changed
@@ -32,6 +36,7 @@ type Options struct {
 	Quiet    bool     `docopt:"-q,--quiet"`
 	Args     []string `docopt:"-a,--args"`
 	Init     bool     `docopt:"-i,--init"`
+	Tasks    bool     `docopt:"-t,--tasks"`
 }
 
 func NewCliOptions() Options {
@@ -43,15 +48,28 @@ func NewCliOptions() Options {
 	return opts
 }
 
-func (opts *Options) InitHandler() error {
+func (opts *Options) InitHandler() (int, error) {
 	if !opts.Init {
-		return nil
+		return -1, nil
 	}
 
 	err := CreateGokeConfig()
 	if err != nil && !opts.Quiet {
-		return err
+		return 1, err
 	}
 
-	return nil
+	return 0, nil
+}
+
+func (opts *Options) TasksHandler(p *Parseable) int {
+	if !opts.Tasks {
+		return -1
+	}
+
+	parser := (*p).(*parser)
+	for taskName := range parser.Tasks {
+		fmt.Println(taskName)
+	}
+
+	return 0
 }

@@ -9,7 +9,7 @@ import (
 	"github.com/stretchr/testify/mock"
 )
 
-func getDependencies(t *testing.T, opts *Options) (*Parser, *Lockfile, *tests.Process, FileSystem) {
+func getDependencies(t *testing.T, opts *Options) (*Parseable, *Lockfile, *tests.Process, FileSystem) {
 	fsMock := mockCacheDoesNotExist(t)
 	fsMock.On("FileExists", mock.Anything).Return(false)
 	fsMock.On("WriteFile", mock.Anything, mock.Anything, mock.Anything).Return(nil)

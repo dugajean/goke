@@ -31,7 +31,7 @@ var spinnerCfg = yacspin.Config{
 }
 
 type Executor struct {
-	parser   Parser
+	parser   Parseable
 	lockfile Lockfile
 	spinner  *yacspin.Spinner
 	options  Options
@@ -41,7 +41,7 @@ type Executor struct {
 }
 
 // Executor constructor.
-func NewExecutor(p *Parser, l *Lockfile, opts *Options, proc Process, fs FileSystem, ctx *context.Context) Executor {
+func NewExecutor(p *Parseable, l *Lockfile, opts *Options, proc Process, fs FileSystem, ctx *context.Context) Executor {
 	spinner, _ := yacspin.New(spinnerCfg)
 
 	return Executor{

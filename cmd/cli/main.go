@@ -10,7 +10,6 @@ import (
 
 func main() {
 	opts := app.NewCliOptions()
-	handleGlobalOptions(&opts)
 
 	cfg, err := app.ReadYamlConfig()
 	if err != nil {
@@ -25,6 +24,9 @@ func main() {
 	// Main components
 	p := app.NewParser(cfg, &opts, &fs)
 	p.Bootstrap()
+
+	// Global options
+	handleGlobalOptions(&opts, &p)
 
 	l := app.NewLockfile(p.GetFilePaths(), &opts, &fs)
 	l.Bootstrap()
