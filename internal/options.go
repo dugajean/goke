@@ -1,34 +1,44 @@
 package internal
 
 import (
-	"encoding/json"
-	"errors"
-	"flag"
-	"net/http"
-	"strings"
+	"github.com/docopt/docopt-go"
 )
 
-const GITHUB_TAGS_ENDPOINT = "https://api.github.com/repos/dugajean/goke/git/refs/tags"
+const CURRENT_VERSION = "0.2.0"
+
+const usage = `Goke
+
+Usage:
+  goke <task> [-w|--watch] [-c|--no-cache] [-f|--force] [-q|--quiet] [-a|--args=<a>...]
+  goke -i | --init
+  goke -h | --help
+  goke -v | --version
+
+Options:
+  -h --help      Show this screen
+  -v --version   Show version
+  -i --init      Creates a goke.yaml file in the current directory
+  -w --watch     Run task in watch mode
+  -c --no-cache  Clears the program's cache
+  -f --force     Runs the task even if files have not been changed
+  -a --args=<a>  The arguments and options to pass to the underlying commands
+  -q --quiet     Suppresses all output from tasks`
 
 type Options struct {
-	ClearCache bool
-	Watch      bool
-	Force      bool
-	Init       bool
-	Quiet      bool
-	Version    bool
+	TaskName string   `docopt:"<task>"`
+	Watch    bool     `docopt:"-w,--watch"`
+	NoCache  bool     `docopt:"-c,--no-cache"`
+	Force    bool     `docopt:"-f,--force"`
+	Quiet    bool     `docopt:"-q,--quiet"`
+	Args     []string `docopt:"-a,--args"`
+	Init     bool     `docopt:"-i,--init"`
 }
 
-func GetOptions() Options {
+func NewCliOptions() Options {
 	var opts Options
 
-	flag.BoolVar(&opts.ClearCache, "no-cache", false, "Clear Goke's cache. Default: false")
-	flag.BoolVar(&opts.Watch, "watch", false, "Goke remains on and watches the task's specified files for changes, then reruns the command. Default: false")
-	flag.BoolVar(&opts.Force, "force", false, "Executes the task regardless whether the files have changed or not. Default: false")
-	flag.BoolVar(&opts.Init, "init", false, "Initializes a goke.yml file in the current directory")
-	flag.BoolVar(&opts.Quiet, "quiet", false, "Disables all output to the console. Default: false")
-	flag.BoolVar(&opts.Version, "version", false, "Prints the current Goke version")
-	flag.Parse()
+	parsedDoc, _ := docopt.ParseArgs(usage, nil, CURRENT_VERSION)
+	parsedDoc.Bind(&opts)
 
 	return opts
 }
@@ -44,35 +54,4 @@ func (opts *Options) InitHandler() error {
 	}
 
 	return nil
-}
-
-func (opts *Options) VersionHandler() (string, error) {
-	if !opts.Version {
-		return "", nil
-	}
-
-	res, err := http.Get(GITHUB_TAGS_ENDPOINT)
-	if err != nil {
-		return "", err
-	}
-	defer res.Body.Close()
-
-	var refs []struct {
-		Ref string `json:"ref,omitempty"`
-	}
-
-	err = json.NewDecoder(res.Body).Decode(&refs)
-	if err != nil {
-		return "", err
-	}
-
-	if len(refs) == 0 {
-		return "", errors.New("could not retrieve version")
-	}
-
-	lastRef := refs[len(refs)-1].Ref
-	lastRefSplit := strings.Split(lastRef, "/")
-	lastRef = lastRefSplit[len(lastRefSplit)-1]
-
-	return lastRef, nil
 }

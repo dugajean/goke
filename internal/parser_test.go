@@ -11,7 +11,7 @@ import (
 )
 
 var clearCacheOpts = Options{
-	ClearCache: true,
+	NoCache: true,
 }
 
 var baseOptions = Options{}
@@ -105,9 +105,9 @@ func TestGlobalsParsing(t *testing.T) {
 	require.Equal(t, "baz", os.Getenv("BAZ"))
 
 	global := parser.GetGlobal()
-	require.Equal(t, "foo", global.Shared.Environment["FOO"])
-	require.True(t, strings.Contains(global.Shared.Environment["BAR"], "bar"))
-	require.Equal(t, "baz", global.Shared.Environment["BAZ"])
+	require.Equal(t, "foo", global.Shared.Env["FOO"])
+	require.True(t, strings.Contains(global.Shared.Env["BAR"], "bar"))
+	require.Equal(t, "baz", global.Shared.Env["BAZ"])
 }
 
 func TestTaskGlobFilesExpansion(t *testing.T) {

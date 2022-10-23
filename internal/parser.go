@@ -32,8 +32,8 @@ type Task struct {
 
 type Global struct {
 	Shared struct {
-		Environment map[string]string `yaml:"environment,omitempty"`
-		Events      struct {
+		Env    map[string]string `yaml:"environment,omitempty"`
+		Events struct {
 			BeforeEachRun  []string `yaml:"before_each_run,omitempty"`
 			AfterEachRun   []string `yaml:"after_each_run,omitempty"`
 			BeforeEachTask []string `yaml:"before_each_task,omitempty"`
@@ -183,12 +183,12 @@ func (p *parser) parseGlobal() error {
 		return err
 	}
 
-	vars, err := cli.SetEnvVariables(g.Shared.Environment)
+	vars, err := cli.SetEnvVariables(g.Shared.Env)
 	if err != nil {
 		return nil
 	}
 
-	g.Shared.Environment = vars
+	g.Shared.Env = vars
 	p.Global = g
 
 	return nil
@@ -225,7 +225,7 @@ func (p *parser) shouldClearCache(tempFile string) bool {
 	tempFileExists := p.fs.FileExists(tempFile)
 	mustCleanCache := false
 
-	if !p.options.ClearCache && tempFileExists {
+	if !p.options.NoCache && tempFileExists {
 		tempStat, _ := p.fs.Stat(tempFile)
 		tempModTime := tempStat.ModTime().Unix()
 
@@ -235,7 +235,7 @@ func (p *parser) shouldClearCache(tempFile string) bool {
 		mustCleanCache = tempModTime < configModTime
 	}
 
-	if p.options.ClearCache && tempFileExists {
+	if p.options.NoCache && tempFileExists {
 		mustCleanCache = true
 	}
 
