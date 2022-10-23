@@ -74,13 +74,17 @@ If you omit the task name and only run `goke`, it will look for a `main` task in
 
 #### Available flags
 
-| Flag | What it does |
-|---|---|
-| `--init` | Creates a simple `goke.yml` file in the current directory, if one doesn't already exist |
-| `--version` | Prints the current version of goke |
-| `--watch` | Runs the given command in _watch_ mode, meaning it will watch the files under `files:` and rerun the command whenever they change |
-| `--force` | Runs the given command regardless whether the files under `files:` have changed |
-| `--no-cache` | Goke caches the given configuration to speed up execution and avoid parsing the configuration on every run. Clear the cache if you are changing your configuration |
+```
+-h --help      Show help screen
+-v --version   Show version
+-i --init      Creates a goke.yaml file in the current directory
+-t --tasks     Outputs a list of all task names
+-w --watch     Run task in watch mode
+-c --no-cache  Clears the program's cache
+-f --force     Runs the task even if files have not been changed
+-a --args=<a>  The arguments and options to pass to the underlying commands
+-q --quiet     Suppresses all output from tasks
+```
 
 ## Tests
 Goke has some unit test coverage. PR’s are welcome to add more tests.

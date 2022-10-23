@@ -6,16 +6,16 @@ import (
 	"github.com/docopt/docopt-go"
 )
 
-const CURRENT_VERSION = "0.2.0"
+const CURRENT_VERSION = "0.2.2"
 
 const usage = `Goke
 
 Usage:
-  goke <task> [-w|--watch] [-c|--no-cache] [-f|--force] [-q|--quiet] [-a|--args=<a>...]
+  goke [<task>] [-w|--watch] [-c|--no-cache] [-f|--force] [-q|--quiet] [-a|--args=<a>...]
   goke -i | --init
   goke -h | --help
   goke -v | --version
-	goke -t | --tasks
+  goke -t | --tasks
 
 Options:
   -h --help      Show this screen
