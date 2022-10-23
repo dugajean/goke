@@ -250,7 +250,12 @@ func (e *Executor) dispatchTask(task Task, initialRun bool) error {
 // Determine what to execute: system command or another declared task in goke.yml.
 func (e *Executor) runSysOrRecurse(cmd string, ch *chan Ref[string]) error {
 	if !e.options.Quiet {
-		e.spinner.Message(fmt.Sprintf("Running: %s", cmd))
+		message := cmd
+		if len(e.options.Args) > 0 {
+			message = fmt.Sprintf("%s %s", message, JoinInnerArgs(e.options.Args))
+		}
+
+		e.spinner.Message(fmt.Sprintf("Running: %s", message))
 	}
 
 	if task, ok := e.parser.GetTask(cmd); ok {
@@ -280,7 +285,9 @@ func (e *Executor) runSysCommand(c string, ch chan Ref[string]) {
 		return
 	}
 
-	out, err := e.process.Execute(splitCmd[0], splitCmd[1:]...)
+	wholeCmd := append(splitCmd[1:], e.options.Args...)
+	out, err := e.process.Execute(splitCmd[0], wholeCmd...)
+
 	if err != nil {
 		ch <- NewRef("", err)
 		return

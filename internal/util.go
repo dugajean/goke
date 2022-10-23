@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"strings"
 )
 
 func GokeFiles() []string {
@@ -97,18 +98,6 @@ func GOBDeserialize[T any](structStr string, structShell *T) T {
 	return *structShell
 }
 
-func PermutateArgs(args []string) int {
-	args = args[1:]
-	optind := 0
-
-	for i := range args {
-		if args[i][0] == '-' {
-			tmp := args[i]
-			args[i] = args[optind]
-			args[optind] = tmp
-			optind++
-		}
-	}
-
-	return optind + 1
+func JoinInnerArgs(args []string) string {
+	return strings.Join(args, " ")
 }

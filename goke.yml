@@ -14,7 +14,6 @@ genmocks:
     - "mockery --name=Process --recursive --output=internal/tests --outpkg=tests --filename=process_mock.go"
 
 greet-cats:
-  files: ["foo"]
   run:
     - 'echo "Hello Frey"'
     - 'echo "Hello Bunny"'
