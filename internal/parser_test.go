@@ -10,46 +10,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-var yamlConfigStub = `
-global:
-  environment:
-    FOO: "foo"
-    BAR: "$(echo 'bar')"
-    BAZ: "baz"
-
-events:
-  before_each_run:
-    - "echo 'before each 1'"
-    - "echo 'before each 2'"
-  after_each_run:
-    - "echo 'after each 1'"
-    - "greet-lisha"
-  before_each_task:
-    - "echo 'before task'"
-  after_each_task:
-    - "echo 'after task'"
-
-greet-lisha:
-  run:
-    - "echo 'Hello Lisha!'"
-
-greet-loki:
-  run:
-    - 'echo "Hello Boki"'
-
-greet-cats:
-  files: [cmd/cli/*]
-  run:
-    - 'echo "Hello Frey"'
-    - 'echo "Hello Sunny"'
-    - "greet-loki"
-
-greet-thor:
-  run:
-    - 'echo "Hello ${THOR}"'
-  env:
-    THOR: "LORD OF THUNDER"`
-
 var clearCacheOpts = Options{
 	ClearCache: true,
 }
@@ -86,7 +46,7 @@ func mockCacheExists(t *testing.T) *tests.FileSystem {
 
 func TestNewParserWithoutCache(t *testing.T) {
 	fsMock := mockCacheDoesNotExist(t)
-	parser := NewParser(yamlConfigStub, &clearCacheOpts, fsMock)
+	parser := NewParser(tests.YamlConfigStub, &clearCacheOpts, fsMock)
 	require.NotNil(t, parser)
 }
 
@@ -94,7 +54,7 @@ func TestNewParserWithCache(t *testing.T) {
 	fsMock := mockCacheDoesNotExistOnce(t)
 	fsMock.On("ReadFile", mock.Anything).Return([]byte(tests.ReadFileBase64), nil)
 
-	parser := NewParser(yamlConfigStub, &clearCacheOpts, fsMock)
+	parser := NewParser(tests.YamlConfigStub, &clearCacheOpts, fsMock)
 	require.NotNil(t, parser)
 }
 
@@ -103,7 +63,7 @@ func TestNewParserWithCacheAndWithoutClearCacheFlag(t *testing.T) {
 	fsMock.On("Stat", mock.Anything).Return(tests.MemFileInfo{}, nil).Twice()
 	fsMock.On("ReadFile", mock.Anything).Return([]byte(tests.ReadFileBase64), nil).Once()
 
-	parser := NewParser(yamlConfigStub, &baseOptions, fsMock)
+	parser := NewParser(tests.YamlConfigStub, &baseOptions, fsMock)
 	require.NotNil(t, parser)
 }
 
@@ -115,14 +75,14 @@ func TestNewParserWithShouldClearCacheTrue(t *testing.T) {
 	fsMock.On("FileExists", mock.Anything).Return(false).Once()
 	fsMock.On("Remove", mock.Anything).Return(nil)
 
-	parser := NewParser(yamlConfigStub, &clearCacheOpts, fsMock)
+	parser := NewParser(tests.YamlConfigStub, &clearCacheOpts, fsMock)
 	require.NotNil(t, parser)
 }
 
 func TestTaskParsing(t *testing.T) {
 	fsMock := mockCacheDoesNotExist(t)
 	fsMock.On("Glob", mock.Anything).Return([]string{"foo", "bar"}, nil).Once()
-	parser := NewParser(yamlConfigStub, &clearCacheOpts, fsMock)
+	parser := NewParser(tests.YamlConfigStub, &clearCacheOpts, fsMock)
 
 	parser.parseTasks()
 
@@ -136,7 +96,7 @@ func TestTaskParsing(t *testing.T) {
 
 func TestGlobalsParsing(t *testing.T) {
 	fsMock := mockCacheDoesNotExist(t)
-	parser := NewParser(yamlConfigStub, &clearCacheOpts, fsMock)
+	parser := NewParser(tests.YamlConfigStub, &clearCacheOpts, fsMock)
 
 	parser.parseGlobal()
 
@@ -151,37 +111,12 @@ func TestGlobalsParsing(t *testing.T) {
 }
 
 func TestTaskGlobFilesExpansion(t *testing.T) {
-	expectedGlob := []string{"foo", "bar"}
-
 	fsMock := mockCacheDoesNotExist(t)
-	fsMock.On("Glob", mock.Anything).Return(expectedGlob, nil).Once()
-	parser := NewParser(yamlConfigStub, &clearCacheOpts, fsMock)
+	fsMock.On("Glob", mock.Anything).Return(tests.ExpectedGlob, nil)
+	parser := NewParser(tests.YamlConfigStub, &clearCacheOpts, fsMock)
 
 	parser.parseTasks()
 	greetCatsTask, _ := parser.GetTask("greet-cats")
 
-	require.Equal(t, expectedGlob, greetCatsTask.Files)
-}
-
-func TestSetEnvVariables(t *testing.T) {
-	fsMock := mockCacheDoesNotExist(t)
-	parser := NewParser(yamlConfigStub, &clearCacheOpts, fsMock)
-
-	values := map[string]string{
-		"THOR":     "Lord of thunder",
-		"THOR_CMD": "$(echo 'Hello Thor')",
-	}
-
-	want := map[string]string{
-		"THOR":     "Lord of thunder",
-		"THOR_CMD": "Hello Thor",
-	}
-
-	got, _ := parser.setEnvVariables(values)
-	require.Equal(t, want["THOR"], os.Getenv("THOR"))
-	require.Equal(t, want["THOR_CMD"], os.Getenv("THOR_CMD"))
-
-	for k := range got {
-		require.Equal(t, want[k], got[k])
-	}
+	require.Equal(t, tests.ExpectedGlob, greetCatsTask.Files)
 }

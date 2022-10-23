@@ -8,11 +8,13 @@ main:
     - "go build -o './build/${BINARY}' ./cmd/cli"
 
 genmocks:
-  files: [internal/filesystem.go]
+  files: [internal/filesystem.go, internal/process.go]
   run:
     - "mockery --name=FileSystem --recursive --output=internal/tests --outpkg=tests --filename=filesystem_mock.go"
+    - "mockery --name=Process --recursive --output=internal/tests --outpkg=tests --filename=process_mock.go"
 
 greet-cats:
+  files: ["foo"]
   run:
     - 'echo "Hello Frey"'
     - 'echo "Hello Bunny"'

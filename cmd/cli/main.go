@@ -1,16 +1,16 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"os"
 
 	app "github.com/dugajean/goke/internal"
-	"github.com/dugajean/goke/internal/cli"
 )
 
 func main() {
 	argIndex := app.PermutateArgs(os.Args)
-	opts := cli.GetOptions()
+	opts := app.GetOptions()
 
 	handleGlobalFlags(&opts)
 
@@ -20,13 +20,18 @@ func main() {
 		os.Exit(1)
 	}
 
+	// Wrappers
 	fs := app.LocalFileSystem{}
+	proc := app.ShellProcess{}
+
+	// Main components
 	p := app.NewParser(cfg, &opts, &fs)
 	p.Bootstrap()
 
 	l := app.NewLockfile(p.GetFilePaths(), &opts, &fs)
 	l.Bootstrap()
 
-	e := app.NewExecutor(&p, &l, &opts)
+	ctx := context.Background()
+	e := app.NewExecutor(&p, &l, &opts, &proc, &fs, &ctx)
 	e.Start(parseTaskName(argIndex))
 }

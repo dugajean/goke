@@ -2,13 +2,12 @@ package internal
 
 import (
 	"log"
-	"os"
-	"os/exec"
 	"path"
 	"path/filepath"
 	"regexp"
 	"strings"
 
+	"github.com/dugajean/goke/internal/cli"
 	"gopkg.in/yaml.v3"
 )
 
@@ -19,12 +18,9 @@ type Parser interface {
 	GetFilePaths() []string
 	parseTasks() error
 	parseGlobal() error
-	parseSystemCmd(*regexp.Regexp, string) (string, string)
-	replaceEnvironmentVariables(*regexp.Regexp, *string)
 	expandFilePaths(string) ([]string, error)
 	getTempFileName() string
 	shouldClearCache(string) bool
-	setEnvVariables(vars map[string]string) (map[string]string, error)
 }
 
 type Task struct {
@@ -142,7 +138,7 @@ func (p *parser) parseTasks() error {
 	for k, c := range tasks {
 		filePaths := []string{}
 		for i := range c.Files {
-			p.replaceEnvironmentVariables(osCommandRegexp, &tasks[k].Files[i])
+			cli.ReplaceEnvironmentVariables(osCommandRegexp, &tasks[k].Files[i])
 			expanded, err := p.expandFilePaths(tasks[k].Files[i])
 
 			if err != nil {
@@ -158,11 +154,11 @@ func (p *parser) parseTasks() error {
 
 		for i, r := range c.Run {
 			tasks[k].Run[i] = strings.Replace(r, "{FILES}", strings.Join(c.Files, " "), -1)
-			p.replaceEnvironmentVariables(osCommandRegexp, &tasks[k].Run[i])
+			cli.ReplaceEnvironmentVariables(osCommandRegexp, &tasks[k].Run[i])
 		}
 
 		if len(c.Env) != 0 {
-			vars, err := p.setEnvVariables(c.Env)
+			vars, err := cli.SetEnvVariables(c.Env)
 			if err != nil {
 				return err
 			}
@@ -187,7 +183,7 @@ func (p *parser) parseGlobal() error {
 		return err
 	}
 
-	vars, err := p.setEnvVariables(g.Shared.Environment)
+	vars, err := cli.SetEnvVariables(g.Shared.Environment)
 	if err != nil {
 		return nil
 	}
@@ -196,29 +192,6 @@ func (p *parser) parseGlobal() error {
 	p.Global = g
 
 	return nil
-}
-
-// Parses the interpolated system commands, ie. "Hello $(echo 'World')" and returns it.
-// Returns the command wrapper in $() and without the wrapper.
-func (p *parser) parseSystemCmd(re *regexp.Regexp, str string) (string, string) {
-	match := re.FindAllStringSubmatch(str, -1)
-
-	if len(match) > 0 && len(match[0]) > 0 {
-		return match[0][0], match[0][1]
-	}
-
-	return "", ""
-}
-
-// Replace the placeholders with actual environment variable values in string pointer.
-// Given that a string pointer must be provided, the replacement happens in place.
-func (p *parser) replaceEnvironmentVariables(re *regexp.Regexp, str *string) {
-	resolved := *str
-	raw, env := p.parseSystemCmd(re, resolved)
-
-	if raw != "" && env != "" {
-		*str = strings.Replace(resolved, raw, os.Getenv(env), -1)
-	}
 }
 
 // Expand the path glob and returns all paths in an array
@@ -267,34 +240,4 @@ func (p *parser) shouldClearCache(tempFile string) bool {
 	}
 
 	return mustCleanCache
-}
-
-// prase system commands and store results to env
-func (p *parser) setEnvVariables(vars map[string]string) (map[string]string, error) {
-	retVars := make(map[string]string)
-	for k, v := range vars {
-		_, cmd := p.parseSystemCmd(osCommandRegexp, v)
-
-		if cmd == "" {
-			retVars[k] = v
-			_ = os.Setenv(k, v)
-			continue
-		}
-
-		splitCmd, err := ParseCommandLine(os.ExpandEnv(cmd))
-		if err != nil {
-			return retVars, err
-		}
-
-		out, err := exec.Command(splitCmd[0], splitCmd[1:]...).Output()
-		if err != nil {
-			return retVars, err
-		}
-
-		outStr := strings.TrimSpace(string(out))
-		retVars[k] = outStr
-		_ = os.Setenv(k, outStr)
-	}
-
-	return retVars, nil
 }
