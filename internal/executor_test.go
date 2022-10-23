@@ -44,28 +44,6 @@ func TestStartNonWatch(t *testing.T) {
 	process.AssertExpectations(t)
 }
 
-func TestStartWatch(t *testing.T) {
-	watchOpts := Options{
-		Watch:      true,
-		ClearCache: true,
-	}
-
-	parser, lockfile, process, fsMock := getDependencies(t, &watchOpts)
-
-	process.On("Execute", mock.Anything, mock.AnythingOfType("string")).Return([]byte("foo"), nil)
-	process.On("Fprint", mock.Anything, mock.AnythingOfType("string")).Return(10, nil)
-
-	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
-	executor := NewExecutor(parser, lockfile, &watchOpts, process, fsMock, &ctx)
-	executor.Start("greet-cats")
-	cancel()
-
-	process.AssertNumberOfCalls(t, "Execute", 3)
-	process.AssertNumberOfCalls(t, "Fprint", 3)
-
-	process.AssertExpectations(t)
-}
-
 func TestStartWatchWithNoFiles(t *testing.T) {
 	watchOpts := Options{
 		Watch:      true,
