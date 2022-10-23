@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"os"
 
@@ -30,6 +31,7 @@ func main() {
 	l := app.NewLockfile(p.GetFilePaths(), &opts, &fs)
 	l.Bootstrap()
 
-	e := app.NewExecutor(&p, &l, &opts, &proc)
+	ctx := context.Background()
+	e := app.NewExecutor(&p, &l, &opts, &proc, &fs, &ctx)
 	e.Start(parseTaskName(argIndex))
 }

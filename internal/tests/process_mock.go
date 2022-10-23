@@ -43,6 +43,11 @@ func (_m *Process) Execute(name string, args ...string) ([]byte, error) {
 	return r0, r1
 }
 
+// Exit provides a mock function with given fields: code
+func (_m *Process) Exit(code int) {
+	_m.Called(code)
+}
+
 // Fprint provides a mock function with given fields: w, a
 func (_m *Process) Fprint(w io.Writer, a ...interface{}) (int, error) {
 	var _ca []interface{}

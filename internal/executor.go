@@ -1,6 +1,8 @@
 package internal
 
 import (
+	"context"
+	"errors"
 	"fmt"
 	"os"
 	"time"
@@ -34,10 +36,12 @@ type Executor struct {
 	spinner  *yacspin.Spinner
 	options  Options
 	process  Process
+	fs       FileSystem
+	context  context.Context
 }
 
 // Executor constructor.
-func NewExecutor(p *Parser, l *Lockfile, opts *Options, proc Process) Executor {
+func NewExecutor(p *Parser, l *Lockfile, opts *Options, proc Process, fs FileSystem, ctx *context.Context) Executor {
 	spinner, _ := yacspin.New(spinnerCfg)
 
 	return Executor{
@@ -46,6 +50,8 @@ func NewExecutor(p *Parser, l *Lockfile, opts *Options, proc Process) Executor {
 		spinner:  spinner,
 		options:  *opts,
 		process:  proc,
+		fs:       fs,
+		context:  *ctx,
 	}
 }
 
@@ -57,7 +63,9 @@ func (e *Executor) Start(taskName string) {
 	}
 
 	if e.options.Watch {
-		e.watch(arg)
+		if err := e.watch(arg); err != nil {
+			e.logErr(err)
+		}
 	} else {
 		if err := e.execute(arg); err != nil {
 			e.logErr(err)
@@ -87,21 +95,36 @@ func (e *Executor) execute(taskName string) error {
 
 // Begins an infinite loop that watches for the file changes
 // in the "files" section of the task's configuration.
-func (e *Executor) watch(taskName string) {
+func (e *Executor) watch(taskName string) error {
 	task := e.initTask(taskName)
 	wait := make(chan struct{})
 
+	if len(task.Files) == 0 {
+		return errors.New("task has no files to watch")
+	}
+
 	for {
+		if e.context.Err() != nil {
+			break
+		}
+
 		go func(ch chan struct{}) {
 			e.checkAndDispatch(task)
 			e.spinner.Message("Watching for file changes...")
 
 			time.Sleep(time.Second)
-			ch <- struct{}{}
+
+			select {
+			case ch <- struct{}{}:
+			case <-e.context.Done():
+				return
+			}
 		}(wait)
 
 		<-wait
 	}
+
+	return nil
 }
 
 // Checks whether the task will be dispatched or not,
@@ -161,12 +184,13 @@ func (e *Executor) shouldDispatchRoutine(task Task, ch chan Ref[bool]) {
 	lockedModTimes := e.lockfile.GetCurrentProject()
 
 	for _, f := range task.Files {
-		fo, err := os.Stat(f)
+		fo, err := e.fs.Stat(f)
 		if err != nil {
 			ch <- NewRef(false, err)
 		}
 
 		modTimeNow := fo.ModTime().Unix()
+
 		if lockedModTimes[f] < modTimeNow {
 			ch <- NewRef(true, nil)
 			return
@@ -285,12 +309,12 @@ func (e *Executor) logExit(status string, message string) {
 			e.spinner.StopMessage(message)
 			e.spinner.Stop()
 		}
-		os.Exit(0)
+		e.process.Exit(0)
 	case "error":
 		if !e.options.Quiet {
 			e.spinner.StopFailMessage(message)
 			e.spinner.StopFail()
 		}
-		os.Exit(1)
+		e.process.Exit(1)
 	}
 }

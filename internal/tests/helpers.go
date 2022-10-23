@@ -55,3 +55,45 @@ func (fi MemFileInfo) IsDir() bool {
 func (fi MemFileInfo) Sys() any {
 	return nil
 }
+
+const YamlConfigStub = `
+global:
+  environment:
+    FOO: "foo"
+    BAR: "$(echo 'bar')"
+    BAZ: "baz"
+
+events:
+  before_each_run:
+    - "echo 'before each 1'"
+    - "echo 'before each 2'"
+  after_each_run:
+    - "echo 'after each 1'"
+    - "greet-lisha"
+  before_each_task:
+    - "echo 'before task'"
+  after_each_task:
+    - "echo 'after task'"
+
+greet-lisha:
+  run:
+    - "echo 'Hello Lisha!'"
+
+greet-loki:
+  run:
+    - 'echo "Hello Boki"'
+
+greet-cats:
+  files: [cmd/cli/*]
+  run:
+    - 'echo "Hello Frey"'
+    - 'echo "Hello Sunny"'
+    - "greet-loki"
+
+greet-thor:
+  run:
+    - 'echo "Hello ${THOR}"'
+  env:
+    THOR: "LORD OF THUNDER"`
+
+var ExpectedGlob = []string{"foo", "bar"}
