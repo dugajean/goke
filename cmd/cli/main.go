@@ -9,10 +9,8 @@ import (
 )
 
 func main() {
-	argIndex := app.PermutateArgs(os.Args)
-	opts := app.GetOptions()
-
-	handleGlobalFlags(&opts)
+	opts := app.NewCliOptions()
+	handleGlobalOptions(&opts)
 
 	cfg, err := app.ReadYamlConfig()
 	if err != nil {
@@ -33,5 +31,5 @@ func main() {
 
 	ctx := context.Background()
 	e := app.NewExecutor(&p, &l, &opts, &proc, &fs, &ctx)
-	e.Start(parseTaskName(argIndex))
+	e.Start(opts.TaskName)
 }

@@ -225,7 +225,7 @@ func (p *parser) shouldClearCache(tempFile string) bool {
 	tempFileExists := p.fs.FileExists(tempFile)
 	mustCleanCache := false
 
-	if !p.options.ClearCache && tempFileExists {
+	if !p.options.NoCache && tempFileExists {
 		tempStat, _ := p.fs.Stat(tempFile)
 		tempModTime := tempStat.ModTime().Unix()
 
@@ -235,7 +235,7 @@ func (p *parser) shouldClearCache(tempFile string) bool {
 		mustCleanCache = tempModTime < configModTime
 	}
 
-	if p.options.ClearCache && tempFileExists {
+	if p.options.NoCache && tempFileExists {
 		mustCleanCache = true
 	}
 

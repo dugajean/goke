@@ -11,7 +11,7 @@ import (
 )
 
 var clearCacheOpts = Options{
-	ClearCache: true,
+	NoCache: true,
 }
 
 var baseOptions = Options{}

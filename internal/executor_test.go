@@ -46,8 +46,8 @@ func TestStartNonWatch(t *testing.T) {
 
 func TestStartWatchWithNoFiles(t *testing.T) {
 	watchOpts := Options{
-		Watch:      true,
-		ClearCache: true,
+		Watch:   true,
+		NoCache: true,
 	}
 
 	parser, lockfile, process, fsMock := getDependencies(t, &watchOpts)

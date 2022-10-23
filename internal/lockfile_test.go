@@ -11,7 +11,7 @@ import (
 var files = []string{"./lockfile.go"}
 
 var lockfileOpts = Options{
-	ClearCache: true,
+	NoCache: true,
 }
 
 var dotGokeFile = `{
