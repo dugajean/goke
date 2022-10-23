@@ -1,8 +1,6 @@
 package internal
 
 import (
-	"log"
-
 	"github.com/docopt/docopt-go"
 )
 
@@ -11,7 +9,7 @@ const CURRENT_VERSION = "0.2.0"
 const usage = `Goke
 
 Usage:
-  goke <task> [-w|--watch] [-c|--no-cache] [-f|--force] [-q|--quiet] [--] <args>...
+  goke <task> [-w|--watch] [-c|--no-cache] [-f|--force] [-q|--quiet] [-a|--args=<a>...]
   goke -i | --init
   goke -h | --help
   goke -v | --version
@@ -23,6 +21,7 @@ Options:
   -w --watch     Run task in watch mode
   -c --no-cache  Clears the program's cache
   -f --force     Runs the task even if files have not been changed
+  -a --args=<a>  The arguments and options to pass to the underlying commands
   -q --quiet     Suppresses all output from tasks`
 
 type Options struct {
@@ -31,7 +30,7 @@ type Options struct {
 	NoCache  bool     `docopt:"-c,--no-cache"`
 	Force    bool     `docopt:"-f,--force"`
 	Quiet    bool     `docopt:"-q,--quiet"`
-	Args     []string `docopt:"<args>"`
+	Args     []string `docopt:"-a,--args"`
 	Init     bool     `docopt:"-i,--init"`
 }
 
@@ -40,8 +39,6 @@ func NewCliOptions() Options {
 
 	parsedDoc, _ := docopt.ParseArgs(usage, nil, CURRENT_VERSION)
 	parsedDoc.Bind(&opts)
-
-	log.Fatal(opts.Args)
 
 	return opts
 }
