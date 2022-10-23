@@ -6,12 +6,11 @@ import (
 	"os"
 
 	app "github.com/dugajean/goke/internal"
-	"github.com/dugajean/goke/internal/cli"
 )
 
 func main() {
 	argIndex := app.PermutateArgs(os.Args)
-	opts := cli.GetOptions()
+	opts := app.GetOptions()
 
 	handleGlobalFlags(&opts)
 
