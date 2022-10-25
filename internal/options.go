@@ -28,6 +28,8 @@ Options:
   -a --args=<a>  The arguments and options to pass to the underlying commands
   -q --quiet     Suppresses all output from tasks`
 
+type OptionHandler func(*Parseable) (int, error)
+
 type Options struct {
 	TaskName string   `docopt:"<task>"`
 	Watch    bool     `docopt:"-w,--watch"`
@@ -48,28 +50,37 @@ func NewCliOptions() Options {
 	return opts
 }
 
-func (opts *Options) InitHandler() (int, error) {
-	if !opts.Init {
-		return -1, nil
+func (opts Options) Handlers(p *Parseable) []OptionHandler {
+	var handlers []OptionHandler
+
+	initHandler := func(p *Parseable) (int, error) {
+		if !opts.Init {
+			return -1, nil
+		}
+
+		err := CreateGokeConfig()
+		if err != nil && !opts.Quiet {
+			return 1, err
+		}
+
+		return 0, nil
 	}
 
-	err := CreateGokeConfig()
-	if err != nil && !opts.Quiet {
-		return 1, err
+	tasksHandler := func(p *Parseable) (int, error) {
+		if !opts.Tasks {
+			return -1, nil
+		}
+
+		parser := (*p).(*parser)
+		for taskName := range parser.Tasks {
+			fmt.Println(taskName)
+		}
+
+		return 0, nil
 	}
 
-	return 0, nil
-}
+	handlers = append(handlers, initHandler)
+	handlers = append(handlers, tasksHandler)
 
-func (opts *Options) TasksHandler(p *Parseable) int {
-	if !opts.Tasks {
-		return -1
-	}
-
-	parser := (*p).(*parser)
-	for taskName := range parser.Tasks {
-		fmt.Println(taskName)
-	}
-
-	return 0
+	return handlers
 }
