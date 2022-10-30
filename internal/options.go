@@ -15,7 +15,7 @@ Usage:
   goke -i | --init
   goke -h | --help
   goke -v | --version
-  goke -t | --tasks
+  goke -t | --tasks [-c|--no-cache]
 
 Options:
   -h --help      Show this screen

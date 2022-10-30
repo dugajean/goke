@@ -168,6 +168,8 @@ func (p *parser) parseTasks() error {
 		tasks[k] = c
 	}
 
+	delete(tasks, "global")
+
 	p.FilePaths = allFilesPaths
 	p.Tasks = tasks
 
