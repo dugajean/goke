@@ -2,6 +2,7 @@ package internal
 
 import (
 	"fmt"
+	"sort"
 
 	"github.com/docopt/docopt-go"
 )
@@ -72,8 +73,15 @@ func (opts Options) Handlers(p *Parseable) []OptionHandler {
 		}
 
 		parser := (*p).(*parser)
-		for taskName := range parser.Tasks {
-			fmt.Println(taskName)
+		tasks := make([]string, 0, len(parser.Tasks))
+
+		for k := range parser.Tasks {
+			tasks = append(tasks, k)
+		}
+		sort.Strings(tasks)
+
+		for _, task := range tasks {
+			fmt.Println(task)
 		}
 
 		return 0, nil
