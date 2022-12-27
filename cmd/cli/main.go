@@ -11,6 +11,9 @@ import (
 func main() {
 	opts := app.NewCliOptions()
 
+	// Global options that don't require parser instance.
+	handleGlobalOptions(&opts, nil)
+
 	cfg, err := app.ReadYamlConfig()
 	if err != nil {
 		fmt.Println(err.Error())
@@ -25,7 +28,7 @@ func main() {
 	p := app.NewParser(cfg, &opts, &fs)
 	p.Bootstrap()
 
-	// Global options
+	// Global options that require parser instance.
 	handleGlobalOptions(&opts, &p)
 
 	l := app.NewLockfile(p.GetFilePaths(), &opts, &fs)

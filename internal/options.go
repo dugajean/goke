@@ -29,7 +29,17 @@ Options:
   -a --args=<a>  The arguments and options to pass to the underlying commands
   -q --quiet     Suppresses all output from tasks`
 
-type OptionHandler func(*Parseable) (int, error)
+type OptionHandler struct {
+	NeedsParser bool
+	Func        func(*Parseable) (int, error)
+}
+
+func newOptionHandler(fn func(*Parseable) (int, error), needsParser bool) OptionHandler {
+	return OptionHandler{
+		NeedsParser: needsParser,
+		Func:        fn,
+	}
+}
 
 type Options struct {
 	TaskName string   `docopt:"<task>"`
@@ -51,44 +61,49 @@ func NewCliOptions() Options {
 	return opts
 }
 
+// Handlers groups the handlers into a slice so that we can run them all at once when used.
 func (opts Options) Handlers(p *Parseable) []OptionHandler {
 	var handlers []OptionHandler
 
-	initHandler := func(p *Parseable) (int, error) {
-		if !opts.Init {
-			return -1, nil
-		}
-
-		err := CreateGokeConfig()
-		if err != nil && !opts.Quiet {
-			return 1, err
-		}
-
-		return 0, nil
-	}
-
-	tasksHandler := func(p *Parseable) (int, error) {
-		if !opts.Tasks {
-			return -1, nil
-		}
-
-		parser := (*p).(*parser)
-		tasks := make([]string, 0, len(parser.Tasks))
-
-		for k := range parser.Tasks {
-			tasks = append(tasks, k)
-		}
-		sort.Strings(tasks)
-
-		for _, task := range tasks {
-			fmt.Println(task)
-		}
-
-		return 0, nil
-	}
-
-	handlers = append(handlers, initHandler)
-	handlers = append(handlers, tasksHandler)
+	handlers = append(handlers, newOptionHandler(opts.initHandler, false))
+	handlers = append(handlers, newOptionHandler(opts.tasksHandler, true))
 
 	return handlers
+}
+
+// initHandler creates goke.yaml if it doesn't exist.
+// Can be invoked via the -i option.
+func (opts Options) initHandler(p *Parseable) (int, error) {
+	if !opts.Init {
+		return -1, nil
+	}
+
+	err := CreateGokeConfig()
+	if err != nil && !opts.Quiet {
+		return 1, err
+	}
+
+	return 0, nil
+}
+
+// tasksHandler outputs a list of all tasks in the current goke.yaml file.
+// Can be invoked via the -t option.
+func (opts Options) tasksHandler(p *Parseable) (int, error) {
+	if !opts.Tasks {
+		return -1, nil
+	}
+
+	parser := (*p).(*parser)
+	tasks := make([]string, 0, len(parser.Tasks))
+
+	for k := range parser.Tasks {
+		tasks = append(tasks, k)
+	}
+	sort.Strings(tasks)
+
+	for _, task := range tasks {
+		fmt.Println(task)
+	}
+
+	return 0, nil
 }
